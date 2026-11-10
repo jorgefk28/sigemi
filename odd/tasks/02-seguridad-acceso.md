@@ -77,3 +77,18 @@ El work unit quedó **partido a propósito**: T1 commiteado y verde, T2 no inici
 - Decisión: todas las respuestas 401 de login llevan `WWW-Authenticate: Bearer`, no solo las de `get_current_user`, para que el desafío OAuth2 sea consistente.
 - Orden de reglas del login (fijado y testeado): desconocido → 401; inactivo → 403; bloqueado → 423; contraseña incorrecta → 401 + contador; correcta → token.
 
+### L5 — Verificación independiente de T2
+
+Verificador independiente sobre `2084dad`. **Sin bloqueantes.** S1, S2, S4 y S5 pass; S3 sigue vigente.
+
+Probes observados: `pytest` 308 passed; token manipulado / firmado con otro secreto / expirado / `sub` no-UUID / usuario inexistente → 401; usuario inactivo → 403; `require_roles("administrador")` con rol `bioquimico` → 403 y con `administrador` → 200; `require_roles()` sin argumentos falla cerrado → 403; bloqueo persistente a través de requests separados, 423 con contraseña correcta estando bloqueado, y liberación al vencer; exactamente una fila de auditoría por login exitoso y una por bloqueo, **ninguna** por intento fallido suelto; ninguna respuesta expone `contrasena_hash` ni el token.
+
+Se incorporaron los probes como `backend/tests/test_auth_security.py` (9 tests). `pytest`: **317 passed**.
+
+**Advisories aceptadas / diferidas**:
+1. **Enumeración por estado**: una cuenta inactiva responde 403 y un correo inexistente 401. Es consecuencia directa del contrato (S1 lo exige para dar un mensaje útil). Se acepta; si el cliente prioriza no revelar existencia de cuentas, se unifica a 401 y se mueve la explicación al correo de contacto.
+2. **Enumeración por tiempo**: con correo inexistente no se ejecuta bcrypt (~150 ms de diferencia). Diferido: mitigar con un hash dummy constante si se decide cerrar el canal.
+3. **`direccion_ip` detrás de proxy inverso**: `request.client.host` devuelve la IP del proxy si el despliegue va detrás de Nginx/Traefik. **RF-14 exige la IP real**, así que esto debe resolverse en el work unit de despliegue (`uvicorn --proxy-headers --forwarded-allow-ips=<proxy>` o middleware de proxy confiable). No es un defecto del endpoint, es configuración de entorno.
+4. **JWT sin `jti` ni revocación**: `get_current_user` revalida estado y roles contra la base en cada request, así que desactivar un usuario surte efecto inmediato. La revocación de un token individual queda para cuando exista un logout real.
+
+
