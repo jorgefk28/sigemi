@@ -18,7 +18,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import ForeignKey, Index, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -91,7 +91,7 @@ class DatoClinico(UUIDPrimaryKeyMixin, Base):
         ForeignKey("ficha_clinica.id"), nullable=False
     )
     campo: Mapped[str] = mapped_column(nullable=False)
-    valor: Mapped[str] = mapped_column(nullable=False)
+    valor: Mapped[str] = mapped_column(Text(), nullable=False)
     tipo_dato: Mapped[str] = mapped_column(nullable=False, default="texto")
 
     __table_args__ = (
@@ -148,7 +148,7 @@ class Muestra(UUIDPrimaryKeyMixin, Base):
     fecha_ingreso: Mapped[datetime] = mapped_column(
         nullable=False, default=utcnow
     )
-    observaciones: Mapped[str | None] = mapped_column(nullable=True)
+    observaciones: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     __table_args__ = (
         Index("ix_muestra_paciente_id", "paciente_id"),
@@ -201,7 +201,7 @@ class HallazgoAnalisis(UUIDPrimaryKeyMixin, Base):
         ForeignKey("analisis_micologico.id"), nullable=False
     )
     tipo_hallazgo: Mapped[str] = mapped_column(nullable=False)
-    dato: Mapped[str] = mapped_column(nullable=False)
+    dato: Mapped[str] = mapped_column(Text(), nullable=False)
     estado_alcanzado: Mapped[str | None] = mapped_column(nullable=True)
     fecha: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
 

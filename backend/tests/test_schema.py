@@ -1,8 +1,8 @@
 """Structural tests for the persistence layer.
 
-They do not need a live database: every table definition is compiled with the
-PostgreSQL dialect, which is enough to prove that the ORM metadata produces
-valid DDL for the target engine and that every foreign key resolves.
+Complements ``test_schema_fidelity.py`` (the level-3 contract) with checks that
+only make sense on the compiled schema: PostgreSQL DDL generation and foreign
+key resolution. No live database is required.
 """
 
 from __future__ import annotations
@@ -10,69 +10,14 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from sqlalchemy import inspect
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex, CreateTable
 
-from app.db.base import Base
 import app.models  # noqa: F401  (registers every table)
+from app.db.base import Base
+from test_schema_fidelity import LEVEL3_COLUMNS
 
-# Every table declared by `Diagramas/modelo_esquema_bd_sigemi.md` (level 3).
-EXPECTED_TABLES = {
-    # Nucleo clinico
-    "paciente",
-    "ficha_clinica",
-    "dato_clinico",
-    "version_ficha_clinica",
-    "muestra",
-    "analisis_micologico",
-    "hallazgo_analisis",
-    "version_analisis",
-    "informe_resultados",
-    "otp",
-    # Personas y acceso
-    "usuario",
-    "rol",
-    "usuario_rol",
-    "profesional",
-    # Agenda y atencion
-    "turno",
-    "indicacion_medica",
-    "espacio_atencion",
-    "grupo_espacio",
-    "tipo_bloqueo",
-    "configuracion_agenda",
-    "periodo_inhabilitado",
-    "bloqueo_agenda",
-    "disponibilidad_profesional",
-    "ausencia_profesional",
-    "oferta_reagendacion",
-    # Catalogos de analisis
-    "tipo_analisis",
-    "tipo_muestra",
-    "tipo_analisis_tipo_muestra",
-    # Inventario
-    "categoria_insumo",
-    "ubicacion_almacenamiento",
-    "insumo",
-    "lote",
-    "movimiento_inventario",
-    # Residuos
-    "categoria_residuo",
-    "instruccion_almacenamiento",
-    "residuo_quimico",
-    "disposicion_final",
-    "reporte_residuos",
-    "reporte_inventario",
-    # Equipos
-    "tipo_equipo",
-    "equipo",
-    "mantenimiento_equipo",
-    # Transversales
-    "auditoria",
-    "cambio_auditoria",
-    "reporte",
-}
+EXPECTED_TABLES = set(LEVEL3_COLUMNS)
 
 
 def test_every_level_3_table_is_modeled() -> None:

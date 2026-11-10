@@ -8,7 +8,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Index
+from sqlalchemy import ForeignKey, Index, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDPrimaryKeyMixin, utcnow
@@ -45,8 +45,8 @@ class CambioAuditoria(UUIDPrimaryKeyMixin, Base):
         ForeignKey("auditoria.id"), nullable=False
     )
     campo: Mapped[str] = mapped_column(nullable=False)
-    valor_anterior: Mapped[str | None] = mapped_column(nullable=True)
-    valor_nuevo: Mapped[str | None] = mapped_column(nullable=True)
+    valor_anterior: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    valor_nuevo: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     __table_args__ = (
         Index("ix_cambio_auditoria_auditoria_id", "auditoria_id"),

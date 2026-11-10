@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDPrimaryKeyMixin
@@ -25,7 +25,7 @@ class TipoAnalisis(UUIDPrimaryKeyMixin, Base):
     )
 
     nombre: Mapped[str] = mapped_column(nullable=False)
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
     estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
 
 
@@ -38,7 +38,7 @@ class TipoMuestra(UUIDPrimaryKeyMixin, Base):
     )
 
     nombre: Mapped[str] = mapped_column(nullable=False)
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
     estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
 
 

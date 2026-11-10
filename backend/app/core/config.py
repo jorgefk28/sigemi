@@ -9,7 +9,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -68,6 +68,23 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
+
+    @model_validator(mode="after")
+    def _reject_dev_defaults_in_production(self) -> Settings:
+        """Fail fast when production runs on the development fallbacks.
+
+        The defaults below exist only so a fresh checkout boots against
+        ``docker compose``. They are never a valid production configuration.
+        """
+
+        if not self.is_production:
+            return self
+
+        if self.secret_key == "change-me-in-production":
+            raise ValueError("SECRET_KEY must be set in production")
+        if "sigemi:sigemi@localhost" in self.database_url:
+            raise ValueError("DATABASE_URL must be set in production")
+        return self
 
     @property
     def is_production(self) -> bool:

@@ -94,7 +94,7 @@ Deben existir los índices de la sección "Índices sugeridos" del nivel 3 (paci
 | T3 | Modelos de agenda/atención (`agenda.py`) y catálogos de análisis (`catalogs.py`) | S3, S4, S5, S6 | delegated | ✅ |
 | T4 | Modelos de inventario (`inventory.py`), residuos (`waste.py`), equipos (`equipment.py`), auditoría (`audit.py`) y reportes (`reports.py`) | S3, S4, S5, S6 | delegated | ✅ |
 | T5 | `app/models/__init__.py`, migración inicial Alembic, `alembic upgrade head` + `downgrade base` sobre Postgres real, `pytest` verde | S3, S7, S8 | inline | ✅ |
-| T6 | Verificación independiente del esquema contra el nivel 3 | S3–S8 | delegated | ⏳ |
+| T6 | Verificación independiente del esquema contra el nivel 3 | S3–S8 | delegated | ✅ |
 
 ---
 
@@ -122,4 +122,28 @@ Deben existir los índices de la sección "Índices sugeridos" del nivel 3 (paci
 - Migración generada: `backend/alembic/versions/1851f84f7605_initial_sigemi_schema.py` (43 KB, 45 `create_table`).
 - `docker compose up -d db` operativo; `env_file` de Compose marcado `required: false` para que el entorno arranque sin `.env` local.
 - El venv de desarrollo vive en `backend/.venv` (git-ignored).
+
+### L4 — Verificación independiente (T6) y correcciones
+
+Verificador independiente sobre `70d6676`, comparando los modelos **y el esquema vivo** contra el nivel 3. Resultado por spec: S3 bloqueante, S1/S2 parciales, S4–S8 pass.
+
+**Bloqueante encontrado y corregido**: 19 columnas declaradas `text` en el nivel 3 se materializaban como `character varying`, porque `type_annotation_map[str] = String()`. Corregidas con `Text()` explícito. Verificado en la base: **21 columnas `text`** (19 corregidas + las 2 que ya lo eran).
+
+**Correcciones adicionales**:
+- S1: `frontend/` estaba vacío y git no versiona directorios vacíos → `frontend/README.md`.
+- S2: `config.py` tiene defaults de desarrollo (DSN y `SECRET_KEY`); se agregó un `model_validator` que **falla el arranque en producción** si siguen vigentes. Los defaults solo sirven para levantar contra `docker compose`.
+- La migración inicial se regeneró (`8f5956edf3e4`) en vez de acumular un `ALTER` sobre una migración nunca publicada: el repo es nuevo y la migración no salió de la máquina.
+
+**Advisories aceptadas (documentadas, no son defectos)**:
+- `usuario_rol(usuario_id)`: el índice del nivel 3 queda cubierto por el prefijo izquierdo de `uq_usuario_rol_usuario_id_rol_id`; se agrega `ix_usuario_rol_rol_id` para el otro sentido.
+- `usuario.correo_electronico` UNIQUE: el nivel 3 no lo lista, pero el correo es el identificador de autenticación; sin unicidad el login sería ambiguo.
+- `UNIQUE(...numero_version)` en las dos tablas de versionado: ver L2.
+- Defaults y precisión no especificados por el nivel 3 (`Numeric()` sin precisión, `dias_alerta_vencimiento=30`, `tipo_dato='texto'`).
+- Nullability no especificada (`hallazgo_analisis.estado_alcanzado`, `residuo_quimico.volumen/peso`, `reporte.mes_anio`).
+- `TipoEspacio.BOX_TOMA_MUESTRA = "box_toma_muestra"`: se usa un código estable en lugar de la prosa "box de toma de muestra".
+
+**Test de contrato durable**: `backend/tests/test_schema_fidelity.py` fija el nivel 3 completo (columnas por tabla, columnas `text`, jsonb, `varchar[]`, convenciones, índices, unicidades, FKs con nullability, decisiones S6). `pytest`: **276 passed**.
+
+**Pendiente para el work unit de frontend**: el archivo de Figma es un *Make file*, que el MCP de Figma no puede leer ("This tool is not supported for Make files") y que por HTTP responde 403. Se necesita un archivo de diseño equivalente o capturas.
+
 

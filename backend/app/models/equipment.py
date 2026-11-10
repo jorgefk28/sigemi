@@ -8,7 +8,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import ForeignKey, Index, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDPrimaryKeyMixin, utcnow
@@ -19,7 +19,7 @@ class TipoEquipo(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "tipo_equipo"
 
     nombre: Mapped[str] = mapped_column(nullable=False)
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
     criticidad: Mapped[str] = mapped_column(nullable=False)
 
     __table_args__ = (
@@ -46,7 +46,7 @@ class Equipo(UUIDPrimaryKeyMixin, Base):
         ForeignKey("ubicacion_almacenamiento.id"), nullable=False
     )
     estado: Mapped[str] = mapped_column(nullable=False, default=EquipoEstado.OPERATIVO.value)
-    requisitos_uso: Mapped[str | None] = mapped_column(nullable=True)
+    requisitos_uso: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     __table_args__ = (
         Index("ix_equipo_tipo_equipo_id", "tipo_equipo_id"),
@@ -64,7 +64,7 @@ class MantenimientoEquipo(UUIDPrimaryKeyMixin, Base):
     prestador: Mapped[str] = mapped_column(nullable=False)
     tipo_mantenimiento: Mapped[str] = mapped_column(nullable=False)
     fecha: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
     proximo_mantenimiento: Mapped[datetime | None] = mapped_column(nullable=True)
 
     __table_args__ = (

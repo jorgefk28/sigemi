@@ -32,7 +32,7 @@ class GrupoEspacio(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "grupo_espacio"
 
     nombre: Mapped[str] = mapped_column(nullable=False)
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
 
 class EspacioAtencion(UUIDPrimaryKeyMixin, Base):
@@ -46,7 +46,7 @@ class EspacioAtencion(UUIDPrimaryKeyMixin, Base):
     grupo_espacio_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("grupo_espacio.id"), nullable=True
     )
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
     estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
 
 
@@ -59,7 +59,7 @@ class TipoBloqueo(UUIDPrimaryKeyMixin, Base):
     )
 
     nombre: Mapped[str] = mapped_column(nullable=False)
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
 
 class IndicacionMedica(UUIDPrimaryKeyMixin, Base):

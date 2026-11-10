@@ -9,7 +9,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDPrimaryKeyMixin, utcnow
@@ -20,7 +20,7 @@ class CategoriaInsumo(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "categoria_insumo"
 
     nombre: Mapped[str] = mapped_column(nullable=False)
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
     estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
 
     __table_args__ = (
@@ -32,7 +32,7 @@ class UbicacionAlmacenamiento(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "ubicacion_almacenamiento"
 
     nombre: Mapped[str] = mapped_column(nullable=False)
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
     estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
 
 
@@ -40,7 +40,7 @@ class Insumo(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "insumo"
 
     nombre: Mapped[str] = mapped_column(nullable=False)
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
     unidad_medida: Mapped[str] = mapped_column(nullable=False)
     categoria_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("categoria_insumo.id"), nullable=False

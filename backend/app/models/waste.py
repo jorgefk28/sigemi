@@ -22,7 +22,7 @@ class CategoriaResiduo(UUIDPrimaryKeyMixin, Base):
 
     nombre: Mapped[str] = mapped_column(nullable=False)
     clase_peligrosidad: Mapped[str] = mapped_column(nullable=False)
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
     estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
 
     __table_args__ = (
@@ -58,7 +58,7 @@ class DisposicionFinal(UUIDPrimaryKeyMixin, Base):
     )
     fecha: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
     metodo_tratamiento: Mapped[str] = mapped_column(nullable=False)
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
 
 class ResiduoQuimico(UUIDPrimaryKeyMixin, Base):
@@ -79,7 +79,7 @@ class ResiduoQuimico(UUIDPrimaryKeyMixin, Base):
     fecha_hora: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
     volumen: Mapped[Decimal | None] = mapped_column(nullable=True)
     peso: Mapped[Decimal | None] = mapped_column(nullable=True)
-    descripcion: Mapped[str | None] = mapped_column(nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     __table_args__ = (
         Index("ix_residuo_quimico_fecha_hora", "fecha_hora"),
