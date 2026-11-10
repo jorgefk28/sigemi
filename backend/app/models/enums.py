@@ -123,6 +123,7 @@ class AccionAuditoria(StrEnum):
     MODIFICAR = "modificar"
     ELIMINAR = "eliminar"
     CONSULTAR = "consultar"
+    ACCEDER = "acceder"
 
 
 class FormatoArchivo(StrEnum):
