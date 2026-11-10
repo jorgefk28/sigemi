@@ -45,7 +45,7 @@ Bloqueo temporal tras `LOGIN_MAX_FAILED_ATTEMPTS` intentos fallidos, por `LOGIN_
 | ID | Tarea | Specs | Ruta | Estado |
 |---|---|---|---|---|
 | T1 | Primitivas de seguridad (bcrypt, JWT), servicio de auditoría append-only, migración de datos del catálogo de roles, fixtures de test con rollback | S2, S3, S4 | delegated (2 en paralelo) | ✅ |
-| T2 | API de autenticación: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `get_current_user`, `require_roles`, wiring del router | S1, S4, S5 | delegated | ⏳ |
+| T2 | API de autenticación: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `get_current_user`, `require_roles`, wiring del router | S1, S4, S5 | delegated | ✅ |
 | T3 | CRUD de usuarios y asignación de roles (solo `administrador`), con auditoría de cada alta/baja/modificación | S1, S2, S3 | — | ⏳ |
 
 ---
@@ -68,3 +68,12 @@ Deriva de RF-13 y RF-14 (nivel 1), de los roles cerrados (nivel 2 §6.2) y de la
 El work unit quedó **partido a propósito**: T1 commiteado y verde, T2 no iniciado. Motivo: el modelo configurado para `gentle-ai-worker` (Claude Sonnet vía cliproxyapi) agotó su cuota (HTTP 429, reset en ~4h35m) y el subagente de T2 se canceló sin escribir archivos.
 
 **Estado exacto al retomar**: HEAD = commit de T1; `git status` limpio; T2 arranca desde cero. El contrato de T2 ya está definido en el prompt de esa tarea (deps + router + tests) y las piezas que consume (`security.py`, `audit.py`, `roles_de_usuario`, `serializar_usuario`, `conftest.client`) ya existen y están testeadas.
+
+### L4 — Evidencia de T2
+
+- `pytest tests/test_auth.py`: **9 passed**. `pytest` completo: **308 passed** (299 + 9), sin regresiones.
+- Rutas registradas: `/health`, `/api/v1/auth/login`, `/api/v1/auth/me`, `/api/v1/openapi.json`, `/docs`, `/redoc`.
+- Decisión: el contrato de la firma de `login` era inválido en Python (`request: Request` no puede ir después de un parámetro con default). Se reordenó a `(request, form=Depends(), db=Depends(get_db))`; FastAPI inyecta `Request` por anotación, la semántica no cambia.
+- Decisión: todas las respuestas 401 de login llevan `WWW-Authenticate: Bearer`, no solo las de `get_current_user`, para que el desafío OAuth2 sea consistente.
+- Orden de reglas del login (fijado y testeado): desconocido → 401; inactivo → 403; bloqueado → 423; contraseña incorrecta → 401 + contador; correcta → token.
+
