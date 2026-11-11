@@ -38,6 +38,19 @@ Criterio: bcrypt con costo 12; nunca se persiste ni se loguea la contraseña en 
 
 Bloqueo temporal tras `LOGIN_MAX_FAILED_ATTEMPTS` intentos fallidos, por `LOGIN_LOCK_MINUTES` minutos, usando `usuario.intentos_fallidos` y `usuario.bloqueado_hasta` (columnas del nivel 3).
 
+### S6 — Fortaleza de contraseñas (supuesto declarado)
+
+> Pedido del usuario, 2026-11-11: «Define tu propuesta de "fortaleza de contraseña" pero que el minimo sea 8 carácteres.»
+
+El nivel 1 exige validar la fortaleza (UCE-SEG-02 paso 6, UCE-SEG-08 paso 7) sin definirla. Se adopta este criterio, aplicado en el alta y en el cambio de contraseña:
+
+- **Mínimo 8 caracteres.**
+- **Máximo 72 bytes.** `hash_password` trunca a 72 bytes (bcrypt): sin tope superior, dos contraseñas distintas después del byte 72 producen el mismo hash. El tope se valida en **bytes UTF-8**, no en caracteres.
+- **Al menos una letra y al menos un dígito.**
+- **No se exigen símbolos ni mayúsculas.** La longitud protege más que la composición (NIST SP 800-63B), y las reglas de composición empujan a patrones predecibles del tipo `Password1!`.
+- Rechazo con `400` y mensaje en español que nombre la regla incumplida.
+- La validación vive en el backend; el frontend muestra el mensaje pero no decide.
+
 ---
 
 ## Tasks
@@ -46,7 +59,9 @@ Bloqueo temporal tras `LOGIN_MAX_FAILED_ATTEMPTS` intentos fallidos, por `LOGIN_
 |---|---|---|---|---|
 | T1 | Primitivas de seguridad (bcrypt, JWT), servicio de auditoría append-only, migración de datos del catálogo de roles, fixtures de test con rollback | S2, S3, S4 | delegated (2 en paralelo) | ✅ |
 | T2 | API de autenticación: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `get_current_user`, `require_roles`, wiring del router | S1, S4, S5 | delegated | ✅ |
-| T3 | CRUD de usuarios y asignación de roles (solo `administrador`), con auditoría de cada alta/baja/modificación | S1, S2, S3 | — | ⏳ |
+| T3 | CRUD de usuarios y asignación de roles (solo `administrador`), con auditoría de cada alta/baja/modificación | S1, S2, S3, S6 | — | ⏳ |
+| T4 | Inventario y especificación de las pantallas de SEG (pasos 1-4 de `odd/design/screen-design-plan.md`) | S1, S6 | — | ⏳ |
+| T5 | Implementación de las pantallas de SEG aprobadas en T4 (patrones P1 y P3) | S1, S6 | — | ⏳ |
 
 ---
 
@@ -90,5 +105,23 @@ Se incorporaron los probes como `backend/tests/test_auth_security.py` (9 tests).
 2. **Enumeración por tiempo**: con correo inexistente no se ejecuta bcrypt (~150 ms de diferencia). Diferido: mitigar con un hash dummy constante si se decide cerrar el canal.
 3. **`direccion_ip` detrás de proxy inverso**: `request.client.host` devuelve la IP del proxy si el despliegue va detrás de Nginx/Traefik. **RF-14 exige la IP real**, así que esto debe resolverse en el work unit de despliegue (`uvicorn --proxy-headers --forwarded-allow-ips=<proxy>` o middleware de proxy confiable). No es un defecto del endpoint, es configuración de entorno.
 4. **JWT sin `jti` ni revocación**: `get_current_user` revalida estado y roles contra la base en cada request, así que desactivar un usuario surte efecto inmediato. La revocación de un token individual queda para cuando exista un logout real.
+
+### L6 — Supuesto de política de contraseñas (2026-11-11)
+
+Nivel 1 exige "validar la fortaleza de la contraseña" en UCE-SEG-02 (paso 6, línea 2379) y UCE-SEG-08 (paso 7, línea 2449) sin definir qué significa. Consultados los tres niveles, ninguno fija un mínimo, un máximo ni reglas de composición.
+
+Se registra **S6** como supuesto explícito, decidido por el usuario, para que T3 tenga contra qué testear. El mínimo de 8 caracteres lo fijó el usuario; la exigencia de letra y dígito, y el tope de 72 bytes, se derivan de la implementación vigente (`hash_password` trunca a 72 bytes) y de NIST SP 800-63B.
+
+**Consecuencia sobre T3**: la especificación de la tarea pasa de `S1, S2, S3` a `S1, S2, S3, S6`. Si el cliente pide otra política, se reescribe S6 y se reabre solo T3.
+
+### L7 — Corrección de estado de las pantallas (2026-11-11)
+
+**Se revirtió** la decisión de tratar `OPENCODE-ARTIFACTS/Pantallas/` como autoridad de presentación. El dueño del repositorio la declaró **obsoleta**: no contiene diseños válidos de pantallas no entregadas. `AGENTS.md` ahora la excluye explícitamente como fuente de diseño, inventario o reglas.
+
+**Estado real**: no existe ninguna especificación de pantalla para las pantallas no entregadas. No hay inventario. No hay prototipo utilizable más allá del armazón ya implementado (S6/S7 de `03-shell-frontend.md`) y la única pieza del archivo Figma (`X7mBlw5ZzuvAIyZXb1UVdG`, nodo `1:3`), que es una copia generada desde el código.
+
+**Procedimiento adoptado**: `odd/design/screen-design-plan.md`. Se agregaron **T4** (inventario + especificación) y **T5** (implementación), ambas pendientes y sin ruta asignada.
+
+**Dependencias**: T3 es backend y no depende de T4. T5 sí depende de T4 aprobada. El orden recomendado es T3 → T4 → T5.
 
 
