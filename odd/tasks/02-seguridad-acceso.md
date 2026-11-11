@@ -124,4 +124,28 @@ Se registra **S6** como supuesto explícito, decidido por el usuario, para que T
 
 **Dependencias**: T3 es backend y no depende de T4. T5 sí depende de T4 aprobada. El orden recomendado es T3 → T4 → T5.
 
+### L8 — Base de instrucciones y reparto en carriles (2026-11-11)
+
+**Corte**: `0050940` — `docs: pin the agent instruction base and parallel execution policy`. Antes de este commit, `AGENTS.md`, `odd/design/screen-design-plan.md`, `.atl/skill-registry.md` y `skills-lock.json` estaban **sin trackear**, y este documento no tenía S6, T4, T5, L6 ni L7. Un `git worktree add` materializa `HEAD`, no el working tree: cualquier worktree creado antes de este commit nacía sin las reglas del repositorio. Ese era el bloqueante real para trabajar en paralelo, no git.
+
+**Política adoptada**: `AGENTS.md`, sección `## Parallel execution (git worktrees)`. Fija las cuatro precondiciones de un carril, el stack único de infraestructura, una base de datos por carril, el dueño único de cada recurso compartido y las reglas de corrida larga.
+
+**Reparto**:
+
+| Carril | Tarea | Escribe | No toca |
+|---|---|---|---|
+| Backend (`feat/seg-t3-usuarios`) | T3 | `backend/app/api/v1/usuarios.py`, `app/schemas/`, `app/services/`, `app/cli/`, `backend/tests/test_usuarios*.py`, `## Tasks` fila T3 y `## Log` de este documento | `frontend/`, `alembic/versions/`, `## Screens` |
+| Pantallas (`feat/seg-t4-inventario`) | T4 | `odd/design/seg-screens-draft.md` | Todo lo demás (lectura permitida) |
+| Integrador (`main`) | merge y cierre | `## Screens` final tras revisión humana, `alembic/versions/`, suite completa | — |
+
+T5 queda bloqueada hasta que T4 esté aprobada, y entonces escribe solo `frontend/src/**`.
+
+T3 **no requiere migración**: las tablas de `usuario`/`rol`/`usuario_rol`/`auditoria` existen desde `8f5956edf3e4` y el catálogo se sembró en `c1bf7c1dd493`. Por eso el carril backend cumple las cuatro precondiciones sin pedirle nada al integrador.
+
+**Precondiciones no satisfechas al momento del corte**:
+
+1. Docker Desktop estaba apagado (`docker ps` no conecta al named pipe). El stack se levanta una sola vez desde este árbol antes de correr pruebas.
+2. `.agents/` sigue en `.gitignore`, así que los cuatro skills de alcance proyecto (`impeccable`, `vercel-composition-patterns`, `vercel-react-best-practices`, `web-design-guidelines`) **no existen** en un worktree. Los 18 skills de alcance usuario sí, porque viven en el perfil. Afecta solo a T5.
+3. `impeccable` está instalado en `.agents/skills` pero **no figura en `skills-lock.json`**, contra la regla de `AGENTS.md` §Skills: fijar la fuente en el repositorio. Pendiente de decisión del dueño.
+
 
