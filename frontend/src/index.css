@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  /* Design tokens from the Figma prototype (presentation authority). */
+  --color-brand: #2563eb;
+  --color-sidebar: #1e2433;
+  --color-sidebar-border: #2d3650;
+  --color-nav-text: #c9d1e0;
+  --color-body: #374151;
+  --color-muted: #6b7587;
+}
