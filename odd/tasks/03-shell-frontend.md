@@ -1,0 +1,164 @@
+# 03 — Shell del frontend: autenticación real y layout de la SPA
+
+**Objetivo**: habilitar la entrada real al sistema desde el navegador — login contra el backend ya testeado, restauración de sesión, cierre de sesión, y el armazón de navegación (sidebar + header + cuerpo) con el Panel de Control como pantalla de aterrizaje, según el prototipo de Figma.
+**Rama**: `main`.
+**Estrategia de entrega**: commits por work unit en `main` (repo sin remoto).
+**Runner**: `vitest` (frontend) + `tsc --noEmit` + `vite build`.
+
+---
+
+## Specs
+
+### S1 — Scaffold de la SPA
+
+React + TypeScript + Vite en `frontend/`, con Tailwind 4 (el prototipo de diseño lo usa: `"tailwindcss": "^4.0.0"`, `"@tailwindcss/vite": "^4.0.0"`). Proxy de desarrollo `/api` → `http://localhost:8000` y base configurable por `VITE_API_BASE_URL` (default `/api/v1`). No se persisten secretos en el bundle.
+
+### S2 — Login real (nivel 1: UC-SEG-01, RF-13)
+
+> **UC‑SEG‑01 Iniciar Sesión** — *Postcondiciones*: "El sistema valida las credenciales y redirige al usuario al panel principal (dashboard) con las opciones habilitadas segǧn su rol predefinido."
+
+El contrato del backend (ya testeado, `backend/app/api/v1/auth.py`) es **form-urlencoded**, no JSON:
+
+- `POST /api/v1/auth/login` con `OAuth2PasswordRequestForm`: campos `username` (correo) y `password`.
+- Respuesta `Token`: `{ "access_token": str, "expires_in": int }` (segundos).
+- `GET /api/v1/auth/me` → `UsuarioRead`: `id`, `nombre`, `apellido`, `correo_electronico`, `estado`, `roles: list[str]`.
+
+Mensajes al usuario, exactamente los del backend cuando exista `detail`:
+
+| Estado | `detail` del backend |
+|---|---|
+| 401 | `Credenciales inválidas` |
+| 403 | `Usuario inactivo` |
+| 423 | `Usuario bloqueado temporalmente` |
+
+Sin conexión: `No se pudo conectar con el servidor`. Durante el envío: `Ingresando...`.
+
+### S3 — Restauración y expiración de sesión
+
+Al arrancar, si hay token guardado se consulta `GET /api/v1/auth/me`; si responde 401/403 se descarta el token y se muestra el login. El token vive en `sessionStorage` (no `localStorage`): se pierde al cerrar la pestaña y no queda en disco.
+
+### S4 — Cerrar sesión (nivel 1: UC‑SEG‑03)
+
+> *Postcondiciones*: "El sistema invalida la sesion, cerrando el acceso a las pantallas internas y redirigiando al usuario a la pantalla de inicio de sesión."
+
+El cierre es local (descarta token y usuario, vuelve al login). **Limitación conocida**: el backend todavía no expone revocación ni `logout` (work unit 02, advisory 4: "JWT sin `jti` ni revocación"); el token emitido sigue siendo válido hasta su expiración. Se documenta, no se simula.
+
+### S5 — Gating de navegación por rol (nivel 1 + nivel 2 §6.2)
+
+Roles cerrados del backend: `bioquimico`, `profesor`, `administrador`. El prototipo define `PAGES_BY_ROLE` con nombres visibles; la implementación mapea **códigos** a las mismas páginas:
+
+| Rol | Páginas visibles |
+|---|---|
+| `administrador` | todas |
+| `bioquimico` | Panel de Control, Agenda y Turnos, Pacientes, Análisis, Resultados, Insumos y Stock, Control de Residuos, Reportes y Estadísticas |
+| `profesor` | Insumos y Stock, Control de Residuos |
+
+Verificado contra nivel 1: el Profesor solo participa en casos de uso de insumos y residuos (ACT‑02 y UC de retiro/devolución/disposición); no aparece en agenda, pacientes ni análisis. El gating es de presentación: la autorización real es del backend.
+
+### S6 — Armazón visual (autoridad de presentación: Figma `X7mBlw5ZzuvAIyZXb1UVdG`, nodo `1:3`)
+
+Del code layer del prototipo, tal cual:
+
+- Sidebar fija de **220 px**, fondo `#1e2433`, borde derecho `#2d3650`, marca: cuadrado 28×28 `#2563eb` con "S", título `SIGEMI` 13 px bold blanco, subtítulo `Lab. Micología · UNaM` 10 px `#6b7587`.
+- Grupos del menú con etiqueta 10 px, `600`, uppercase, `letter-spacing: 0.08em`, color `#6b7587`.
+- Ítem: 12.5 px, padding `7px 16px`, color `#c9d1e0`; activo con fondo `#2d3650`, texto blanco `600` y borde izquierdo 2 px `#2563eb`.
+- Header de **48 px** (`h-12`) sobre superficie blanca, con breadcrumb `sección / título` a la izquierda y acciones a la derecha.
+- Cuerpo `flex-1 overflow-auto p-6` sobre fondo general; contenido centrado con ancho máximo 1200 px.
+- Estructura del armazón: `PageShell` = sidebar + columna con header y `main` scrolleable.
+
+### S7 — Aterrizaje: Panel de Control sin datos fabricados
+
+El prototipo muestra KPIs, turnos y alertas con datos mock. El backend **todavía no expone** endpoints de agenda, análisis, inventario ni residuos, así que el shell renderiza el marco del panel (título, fecha, botón `Actualizar`, tarjetas de Turnos de hoy, Carga de trabajo, Próximos turnos, Alertas de stock) con **estados vacíos explícitos** (`Sin datos todavía`), nunca con números inventados. Cuando existan los endpoints, cada tarjeta se cablea sin cambiar el layout.
+
+### S8 — Idioma
+
+UI y mensajes al usuario en español (es‑AR). Identificadores, tipos, comentarios y nombres de archivo en inglés.
+
+### S9 — Pruebas
+
+Vitest + Testing Library. Como mínimo: codificación `form-urlencoded` del login, mapeo 401/403/423 a mensajes, restauración de sesión con `/me`, descarte del token ante 401, redirección a login sin sesión, y visibilidad del menú para los tres roles.
+
+### S10 — Verde
+
+`npx tsc --noEmit`, `npm test` y `npm run build` sin errores.
+
+---
+
+## Tasks
+
+| ID | Tarea | Specs | Ruta | Estado |
+|---|---|---|---|---|
+| T1 | Scaffold (Vite/TS/Tailwind), cliente de auth, store de sesión, pantalla de login, ruta protegida | S1, S2, S3, S4, S8, S9 | delegated (gentle-ai-worker) | ✅ |
+| T2 | Primitivas de UI, `PageShell` (sidebar + header), gating por rol, Panel de Control con estados vacíos | S5, S6, S7, S8, S9 | delegated (gentle-ai-worker) | ✅ |
+| T3 | Verificación independiente y commit del work unit | S1-S10 | delegated (gentle-ai-verify) | ✅ |
+
+**Risk**: item 5 — se agrega un stack de build completo (Vite, React, Tailwind, Vitest) como dependencias nuevas del monorepo.
+
+---
+
+## Log
+
+### L1 — Origen (verificado 2026-11-10)
+
+> "TAREA 2: work unit 03 — shell del frontend. Figma Design file: fileKey X7mBlw5ZzuvAIyZXb1UVdG, nodo 1:3 "Back-office laboratory dashboard" (1280x1080). El MCP lo lee con create_session + get_design_context. El diseño es autoridad de PRESENTACIÓN, no de requisitos. Si contradice los niveles 1-3, gana la documentación y me lo reportás. Stack: React + TypeScript + Vite. Login real contra POST /api/v1/auth/login y GET /api/v1/auth/me (ya existen y están testeados)."
+
+### L2 — Lectura del diseño
+
+`get_design_context` (sesión `a70f8c5d-f043-49da-97cb-26acd38240aa`) devolvió el **code layer** del nodo `1:3`: `src/App.tsx`, `src/components/{SharedLayout,PanelControlView,AgendaView,PacientesView,FichaClinicaView,DetalleAnalisisView,ResultadosView,ui}.tsx`, `src/sigemi/{core,InsumosView,ResiduosView,ReportesView,UsuariosView,AuditoriaView}.tsx`, `RESUMEN_NAVEGACION.md` y `BRIEF_DISENO_UX_UI_SIGEMI.md`. `get_screenshot` falla: el nodo pertenece a un archivo Figma Make y la herramienta no lo soporta. La referencia visual es el code layer.
+
+### L3 — Divergencias diseño vs fuentes de verdad (a reportar, no a "arreglar")
+
+1. **El diseño no incluye pantalla de login.** El prototipo arranca logueado con un selector de rol mock. La pantalla de login es derivada, no diseñada; se construye con los mismos tokens del prototipo.
+2. **El prototipo fabrica datos** (15 análisis, 5 turnos, 3 alertas, IPs, usuarios). El nivel 1 exige indicadores reales, pero no hay endpoints todavía: se implementan estados vacíos explícitos.
+3. **El prototipo simula sesión** (`roleStore`, `SESSION_USERS`) con nombres y roles mock. Se reemplaza por `/auth/me`; el selector de rol desaparece.
+4. Los nombres visibles de rol del prototipo (`Bioquímico/Doctor`) se mantienen en la UI, pero el gating usa los códigos cerrados del backend (`bioquimico`, `profesor`, `administrador`).
+
+### L4 — Estado de partida
+
+`frontend/` solo tenía `README.md`. 317 tests de backend verdes; los 4 commits previos con RDD quedaron revisados y con authority quemada.
+
+### L5 — Evidencia de T2
+
+- `npx vitest run`: **23 passed** (8 `api/auth`, 7 `session/auth`, 8 `roleGating`). `npx tsc --noEmit`: exit 0. `npm run build`: `✓ built`.
+- Archivos: `components/{PageShell,Sidebar,Panel,Kpi,Btn,EmptyState}.tsx`, `features/navigation/{navigation.ts,roleGating.test.tsx}`, `features/dashboard/DashboardPage.tsx`, `features/placeholder/PlaceholderPage.tsx`, `features/shell/Shell.tsx`.
+- Desvíos de presentación aceptados y su motivo: (a) el pie del sidebar usa un botón directo `Cerrar sesión` en lugar del menú desplegable del prototipo, porque el test de sesión de T1 exige ese botón accesible sin abrir un menú; (b) el breadcrumb usa el título de la página (`Estado operativo del laboratorio`) y no la etiqueta del menú, para no duplicar el texto que el test de T1 busca por coincidencia única; (c) el rótulo de la banda del panel es `Resumen`, no especificado por el diseño.
+- Decisión derivada de S5 sobre el diseño: para `profesor` el aterrizaje es `Insumos y Stock`, no `Panel de Control`, porque el nivel 1 (UC-REP-02) reserva el panel a Bioquímico y Administrador. El prototipo siempre aterriza en el panel; gana la documentación.
+
+### L6 — Verificación independiente de T3
+
+Verificador independiente sobre el árbol de trabajo (baseline `ef51e70`). **Sin bloqueantes.** S1–S10 pass. Backend intacto: `git diff ef51e70 -- backend/` vacío; `pytest` **317 passed** en el baseline.
+
+Probes observados:
+- **Live end-to-end** contra PostgreSQL (`sigemi-db:5433`) y `uvicorn` real: JSON → 422; form con `email` → 422; `login()` real del módulo del frontend → 200 con `access_token` + `expires_in`; `/me` con Bearer → 200 con el perfil y `roles: ["bioquimico"]`; token inválido → 401 `Credenciales inválidas`; contraseña incorrecta → 401; usuario inactivo → 403 `Usuario inactivo`; bloqueado → 423 `Usuario bloqueado temporalmente`. Usuario y filas de auditoría del probe eliminados; 0 residuos.
+- **Discriminación por mutación** en copia scratch: JSON en vez de form → 2 tests fallan; quitar `Bearer ` → 2 fallan; no descartar la sesión ante 401/403 → 3 fallan; desactivar el bypass de `administrador` → 1 falla.
+- Scratch del verificador: `C:\Users\Jorge Kluka\AppData\Local\Temp\opencode\scratch-verifier-d13b731e` (se elimina fuera del repo).
+
+Probes durables incorporados: `backend/tests/test_auth_contract.py` (3 tests) y `frontend/src/api/auth.contract.test.ts` (1 test).
+
+Cierre de gates: `pytest` **320 passed**; `vitest` **24 passed**; `tsc --noEmit` exit 0; `vite build` ✓.
+
+### L7 — Riesgo declarado
+
+`Risk: item 5` — el work unit agrega un stack de build completo (Vite, React, Tailwind 4, Vitest) como dependencias nuevas del monorepo. Por eso llevó verificador independiente.
+
+### L8 — Entrega y RDD del work unit
+
+El commit original se partió en tres slices porque el nativo rechazó el candidato completo con `lens_context_budget_exceeded` (5422 líneas, de las cuales 3813 son el `package-lock.json` generado); la continuación indicada por el nativo fue rebanar en commits más chicos.
+
+| Commit | Contenido | Líneas | Assess | Review |
+|---|---|---|---|---|
+| `4041ef0` | toolchain + lockfile | 3918 | medium | **approved**, 0 hallazgos |
+| `b055617` | login, sesión y ruta protegida | 705 | high | **approved**, 9 hallazgos informativos |
+| `dadf0ee` | shell con gating y panel | 799 | medium / `under_budget` | no requerida |
+
+Los tres reviews se corrieron con consentimiento por candidato y `acknowledge-approved` exacto; autoridad quemada en cada uno. Un revisor (`risk`, slice `b055617`) devolvió `reviewer_result_not_admissible` en el primer intento; el STATUS reofreció el mismo slot y se relanzó una sola vez.
+
+**Advisories aceptadas del review de `b055617`** (no bloqueantes, trabajo posterior):
+1. El token vive en `sessionStorage`: legible por JavaScript del mismo origen. Se eligió sobre `localStorage` por vida útil; una cookie `httpOnly` queda como endurecimiento futuro, requiere cambio de backend.
+2. `logout()` no revoca en servidor: limitación ya documentada en S4.
+3. Si `/me` falla con error de red o 5xx al arrancar, se descarta la sesión visible pero el token queda guardado y el reintento se repite en cada recarga.
+4. `sessionStorage` no está envuelto en `try/catch`: almacenamiento bloqueado o lleno puede romper el arranque o el login.
+5. El mensaje de fallback para estados no mapeados (`Error inesperado del servidor`) no tiene test propio.
+6. `loadUser` está exportado sin uso: el `USER_KEY` se escribe y nunca se lee.
+
+**Divergencia de presentación pendiente de tu decisión**: el pie del sidebar del prototipo abre un menú desplegable; la implementación usa un botón directo `Cerrar sesión` (razón en L5).
