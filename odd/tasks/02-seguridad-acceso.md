@@ -148,4 +148,28 @@ T3 **no requiere migración**: las tablas de `usuario`/`rol`/`usuario_rol`/`audi
 2. `.agents/` sigue en `.gitignore`, así que los cuatro skills de alcance proyecto (`impeccable`, `vercel-composition-patterns`, `vercel-react-best-practices`, `web-design-guidelines`) **no existen** en un worktree. Los 18 skills de alcance usuario sí, porque viven en el perfil. Afecta solo a T5.
 3. `impeccable` está instalado en `.agents/skills` pero **no figura en `skills-lock.json`**, contra la regla de `AGENTS.md` §Skills: fijar la fuente en el repositorio. Pendiente de decisión del dueño.
 
+### L9 — Evidencia del arranque de carriles (2026-11-11)
+
+**Infraestructura**: Docker Desktop estaba apagado y se encendió. `docker compose up -d db redis` se corrió **una sola vez desde el árbol principal**. `sigemi-db` healthy en `5433`, `sigemi-redis` healthy en `6380`. La base de desarrollo `sigemi` quedó intacta: `alembic_version = c1bf7c1dd493`, 3 roles, 0 usuarios.
+
+**Worktrees**: `C:\work\sigemi-t3` en `feat/seg-t3-usuarios` y `C:\work\sigemi-t4` en `feat/seg-t4-inventario`, ambos sobre `5d78048`. El carril de pantallas no necesita bootstrap; el backend tiene su `.venv` propio con `requirements-dev.txt` instalado. `backend/.venv` y `frontend/node_modules` **no** se copiaron entre worktrees.
+
+**Base por carril**: `sigemi_t3` creada sobre el servidor compartido. `alembic upgrade head` ejecutado desde el worktree del carril → `c1bf7c1dd493` + 3 roles. La base de desarrollo `sigemi` no recibió ningún cambio.
+
+**Respaldo**: `C:\work\sigemi-2026-11-11.bundle` (`git bundle create --all`), verificado con `git bundle verify` → «records a complete history».
+
+**Evidencia del carril backend**: `pytest` desde `C:\work\sigemi-t3\backend` con `DATABASE_URL` apuntando a `sigemi_t3` → **320 tests, 0 failures, 0 errors, 0 skipped, 48.33 s** (junit). El aislamiento funciona: al terminar, `sigemi_t3` quedó con 0 usuarios, porque el fixture revierte cada transacción.
+
+**Corrección de baseline**: L5 registró **317**. El conteo real es **320**. El criterio de T3 pasa a «≥ 320 sobre la base actual», no «≥ 317».
+
+**Hallazgo — probe flaky preexistente**. `tests/test_auth_security.py::test_tampered_token_is_rejected` (commit `ef51e70`) altera el último carácter del token:
+
+```python
+tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+```
+
+La firma HS256 son 32 bytes → 43 caracteres base64url. El último carácter solo aporta **4 bits significativos**: reemplazarlo por `A` deja los bytes decodificados **idénticos** en aproximadamente 1 de cada 16 casos (medido sobre 300 tokens: **19 coincidencias**). Cuando coincide, el token sigue siendo válido, `/api/v1/auth/me` responde `200` y el test falla.
+
+No es un defecto de seguridad: es un defecto del probe. Consecuencia operativa: la suite falla ~6 % de las corridas sin que nada esté roto, y el carril de T3 la va a correr muchas veces. **Acción**: corregir el probe alterando un byte de la firma de forma determinista, en un commit de test propio antes o junto con T3.
+
 
