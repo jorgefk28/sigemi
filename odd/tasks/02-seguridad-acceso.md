@@ -322,5 +322,68 @@ T6 escribe solo `backend/app/` y `backend/tests/`, no requiere migración y no t
 
 
 
+### L17 — T4: inventario y especificaciones de pantallas de SEG (2026-11-12, carril `feat/seg-t4-inventario`)
+
+**Producido**: `odd/design/seg-screens-draft.md`, pasos 1-3 de `odd/design/screen-design-plan.md` (inventario, patrón y especificación por pantalla). **No** incluye el paso 4: la aprobación es del dueño y todavía no ocurrió. `## Specs`, `## Screens` y `## Tasks` no se tocaron: son del integrador y del carril de T3.
+
+**Inventario derivado** (6 UCE → 9 pantallas + 1 que no genera pantalla):
+
+| Patrón | Pantallas |
+|---|---|
+| P1 | SEG-U02 Listado de usuarios, SEG-U04 Listado de auditoría |
+| P2 | SEG-U05 Detalle de evento, SEG-U08 Mi perfil |
+| P3 | SEG-U01 Iniciar sesión (entregada), SEG-U03 Alta/edición de usuario, SEG-U06 Solicitar recuperación, SEG-U07 Definir nueva contraseña, SEG-U09 Cambiar contraseña |
+
+UCE–SEG-03 (Cerrar Sesión) no nombra pantalla: es una acción del armazón, ya entregada en S4 de `03-shell-frontend.md`. Se registra en el inventario para que el mapeo quede completo y no se "descubra" después como faltante.
+
+**Hallazgo principal — cuatro pantallas dependen de endpoints sin dueño.** `GET /api/v1/auditoria`, `GET /api/v1/auditoria/{id}`, `POST /api/v1/auth/password` y los dos de recuperación no existen y ninguna tarea los cubre: T3 es CRUD de usuarios, T4 diseño, T5 frontend. Sin una tarea de backend nueva, SEG-U04, SEG-U05, SEG-U06, SEG-U07 y SEG-U09 no se implementan. T5 no puede empezar por el par P1+P3 completo: SEG-U02 y SEG-U03 sí (T3), SEG-U04 no.
+
+**Hallazgo — el nivel 3 no tiene almacenamiento para el token de recuperación.** UCE–SEG-07 pide un token con TTL por correo; `otp` cuelga de `analisis_id` (nivel 3 L178-187) y es de otro subsistema. Se proponen dos salidas y ninguna se decide acá: token firmado sin estado (recomendada, sin migración) o tabla nueva (cambio del nivel 3, dueño integrante). Aparte, el envío por correo es una dependencia de runtime nueva y `AGENTS.md` la prohíbe sin aprobación explícita.
+
+**Hallazgo — divergencia nivel 1 contra implementación en el bloqueo por intentos.** UCE–SEG-01 exc. paso 5 (L2360) dice que al quinto fallo la cuenta pasa a estado **«Inhabilitado»**; S5 implementa bloqueo temporal con `bloqueado_hasta` y 423, verificado en L5. El nivel 1 gana: es una divergencia de la implementación, no una decisión de pantalla. Registrado como D4 del borrador con la recomendación de dejar S5 como desvío deliberado del dueño y no escribir «cuenta inhabilitada» en la UI mientras el bloqueo sea temporal.
+
+**Requisito faltante reportado, no diseñado**: UCE–SEG-02 define la baja lógica y ningún paso define reactivar una cuenta (G4). No se agregó el botón. Tampoco se inventó el alta de `profesional` (`matricula`, `especialidad`): ningún paso de SEG lo pide (G5).
+
+**Decisiones abiertas del borrador**: D1 contraseña opcional en la edición de usuario; D2 multi-selección de roles (nivel 1 dice «uno», nivel 2 y S3 dicen acumulables); D3 entrada a «Mi perfil» por menú del header en vez de página del sidebar; D4 (arriba); D5 (arriba); D6 conjunto cerrado del filtro `accion`.
+
+**Defecto de herramientas observado**: al abrir el carril, `git status` ya traía `.atl/skill-registry.md` modificado sin commit: `gentle-ai skill-registry refresh` reescribió el título y las rutas absolutas de los tres skills de alcance proyecto (`C:\Users\...\sigemi\...` → `C:\work\sigemi-t4\...`). Cada worktree genera rutas distintas, así que el archivo cambia por carril y produce conflicto por bytes que nadie editó, contra el objetivo de L10/L11 de que la base no dependa del ambiente. No se tocó ni se commiteó en este work unit (G6).
+
+### L18 — Aprobación humana de las pantallas de SEG (2026-11-12)
+
+**Aprobación explícita del dueño, textual**: «aprobado». Cierra el paso 4 de `odd/design/screen-design-plan.md` para `odd/design/seg-screens-draft.md` (commit `2a71c21`), presentado con las seis decisiones abiertas y su recomendación. Se lee como **aprobado tal cual**, con D1-D6 en la dirección recomendada:
+
+| Punto | Dirección aprobada |
+|---|---|
+| D1 | Contraseña obligatoria en el alta, opcional en la edición («dejar en blanco para conservar») |
+| D2 | Roles en multi-selección, mínimo uno (nivel 2 §6.2 + S3 + `usuario_rol`) |
+| D3 | «Mi perfil» por menú del usuario en el header; el sidebar sigue siendo módulos de negocio |
+| D4 | Se mantiene el bloqueo temporal de S5; la UI dice «cuenta bloqueada temporalmente», nunca «inhabilitada» |
+| D5 | Token de recuperación firmado sin estado (sin migración). El envío por SMTP queda sujeto a la aprobación de dependencia que exige `AGENTS.md`, en su propio work unit |
+| D6 | El filtro `accion` valida contra `{crear, modificar, eliminar, consultar}` |
+
+**Consecuencias registradas**:
+
+1. **D4 deja S5 como desvío deliberado del nivel 1** (UCE–SEG-01 exc. paso 5 pide estado «Inhabilitado», la implementación bloquea temporalmente). El nivel 1 no se edita. La constancia vive en este Log; si el dueño quiere que quede en `## Specs`, la escribe el integrador, porque `## Specs` no es superficie de este carril.
+2. **El borrador pasa a ser especificación**: una pantalla aprobada no se rediseña durante la implementación. Si T5 encuentra un problema, se reporta y se decide, no se ajusta sobre la marcha.
+3. **T4 queda terminada, pero la fila T4 de `## Tasks` sigue en ⏳**: `## Tasks` pertenece al carril de T3 (`AGENTS.md` §Parallel execution). El integrador o ese carril la marcan al mergear.
+4. **T5 no está desbloqueada del todo**: SEG-U02 y SEG-U03 pueden implementarse contra T3; SEG-U04, SEG-U05, SEG-U06, SEG-U07 y SEG-U09 siguen esperando las tareas de backend de G1 y G2 más D5.
+
+**Próximo paso concreto**: el integrador fusiona `odd/design/seg-screens-draft.md` en `## Screens` de este documento, entre `## Specs` y `## Tasks`, y agrega las tareas de backend de G1 y G2.
+
+### L19 — Desestimación de la aprobación de L18 y corrección de la especificación (2026-11-12)
+
+**Instrucción del usuario, textual**: «si, desestima el borrador que yo aprobé entonces, haz lo que creas correcto».
+
+La aprobación de L18 queda **sin efecto**: el borrador aprobado no es la especificación. El motivo es que se escribió desde el carril de T4, antes de que T3 existiera, y contradice el código que ya está en `main` en tres puntos. El nivel 1 gana en el paso 6 de UCE-SEG-02, pero el contrato de la API no se puede contradecir sin que el código cambie.
+
+| Contradicción | Borrador | Código real de T3 |
+|---|---|---|
+| `correo único → 409` | `409` (l.203, 178, 195) | `400` con `campo` (decisión 1 de L13). No hay `409` en el código. |
+| `roles` en `PATCH /usuarios/{id}` | `PATCH` (l.187) | `UsuarioUpdate` no tiene `roles`; el reemplazo va por `PUT /usuarios/{id}/roles` (decisión 4 de L13). |
+| `POST /usuarios/{id}/baja` | `POST` (l.124, 517) | `PATCH` con `estado=inactivo` (decisión 2 de L13); `DELETE` responde `405`. |
+
+**Corrección aplicada**: `odd/design/seg-screens-draft.md` se corrige en los tres puntos, se re-verifica contra el código y se fusiona en `## Screens` de este documento. La especificación corregida **no se implementa sin aprobación explícita**: se presenta al dueño y se espera. El nivel 1 no se toca; el paso 6 de UCE-SEG-02 sigue diciendo lo que dice, y la respuesta de la API es el desvío que el contrato de `AGENTS.md` ya fija.
+
+**Consecuencia**: T5 sigue bloqueada por la aprobación de la especificación corregida, no por el código de T3. T3 ya está entregado y aprobado.
 
 
