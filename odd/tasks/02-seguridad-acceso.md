@@ -229,8 +229,8 @@ Sin acción de reactivar: ver §4 G4.
 
 | Campo | Obligatorio | Origen | Validación |
 |---|---|---|---|
-| Nombre | sí | `usuario.nombre` | no vacío, ≤ 100 caracteres |
-| Apellido | sí | `usuario.apellido` | no vacío, ≤ 100 caracteres |
+| Nombre | sí | `usuario.nombre` | no vacío, ≤ 120 caracteres |
+| Apellido | sí | `usuario.apellido` | no vacío, ≤ 120 caracteres |
 | Correo electrónico | sí | `usuario.correo_electronico` | formato + único (400 con `campo`) |
 | Contraseña | sí, solo en el alta | `usuario.contrasena_hash` | S6 |
 | Roles | sí, 1 o más | `usuario_rol` → `rol.codigo` | debe existir en el catálogo cerrado |
@@ -305,7 +305,7 @@ No hay acciones de edición ni de borrado: el registro es **inmutable** (L2434; 
 |---|---|---|
 | Usuario | `usuario_id` (selector de usuarios) | paso 3 |
 | Fecha desde / hasta | `fecha_desde`, `fecha_hasta` sobre `fecha_hora` | paso 3 |
-| Tipo de acción | `accion` (ver D6) | paso 3 |
+| Tipo de acción | `accion` | paso 3. Catálogo cerrado (D6): `Crear`, `Modificar`, `Eliminar`, `Consultar`, `Acceder`, `Bloquear` |
 
 **Estados**
 
@@ -668,15 +668,19 @@ subsistema, y no se reutiliza.
   runtime nueva, que `AGENTS.md` prohíbe sin aprobación explícita.
 - **Bloquea**: SEG-U06, SEG-U07 y cualquier prueba de recuperación.
 
-### D6 — Filtro «tipo de acción» de auditoría
+### D6 — Filtro «tipo de acción» de auditoría (resuelto: catálogo cerrado del nivel 3)
 
-`auditoria.accion` es `varchar` libre (nivel 3 L579, con ejemplos «crear / modificar /
-eliminar / consultar»). Un filtro necesita un conjunto cerrado.
+`auditoria.accion` **no es `varchar` libre**: el nivel 3 lo declara catálogo cerrado
+(`crear | modificar | eliminar | consultar | acceder | bloquear`, decisión 4 del nivel 2,
+registrada en L24). El filtro ofrece el catálogo completo y el backend valida contra él:
+cualquier otro valor responde `400` con `campo="accion"`. Un valor fuera del catálogo ya
+no es un caso posible, porque la aplicación lo verifica al escribir.
 
-- **Recomendación**: el backend valida contra `{crear, modificar, eliminar, consultar}` y
-  el selector muestra esos cuatro; si aparece un valor nuevo en la base, el filtro no lo
-  ofrece y el listado sin filtro lo sigue mostrando.
-- **Bloquea**: la barra de filtros de SEG-U04.
+- **Bloquea**: nada. Desbloquea la barra de filtros de SEG-U04.
+- **Consecuencia en T7**: T7 valida hoy contra los cuatro valores del borrador de D6 y
+  deja afuera los eventos de login y de bloqueo, que hoy existen en la base con
+  `accion='acceder'`. Alinear el filtro al catálogo cerrado y auditar el bloqueo como
+  `bloquear` es T9.
 
 ### G1 — Endpoints de auditoría (resuelto en T7)
 
@@ -749,10 +753,11 @@ construye esas cuatro primitivas en SEG-U02 y SEG-U03.
 | T2 | API de autenticación: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `get_current_user`, `require_roles`, wiring del router | S1, S4, S5 | delegated | ✅ |
 | T3 | CRUD de usuarios y asignación de roles (solo `administrador`), con auditoría de cada alta/baja/modificación | S1, S2, S3, S6 | inline | ✅ |
 | T4 | Inventario y especificación de las pantallas de SEG (pasos 1-4 de `odd/design/screen-design-plan.md`). Aprobada por el dueño el 2026-11-12 (L21) | S1, S6 | — | ✅ |
-| T5 | Implementación de las pantallas de SEG (patrones P1 y P3). SEG-U02 y SEG-U03 pueden arrancar; SEG-U04, U05, U06, U07 y U09 esperan T7/T8 | S1, S6 | — | ⏳ |
-| T6 | Endurecer T3 según el review nativo: traducir la carrera de unicidad de correo y de reemplazo de roles a `400` con `campo`, y pinear `direccion_ip` en las filas de auditoría | S1, S2 | — | ⏳ |
-| T7 | Backend de auditoría (G1): `GET /api/v1/auditoria` y `GET /api/v1/auditoria/{id}`, solo `administrador`, con filtros `usuario_id`, `fecha_desde`, `fecha_hasta` y `accion` | S2 | — | ⏳ |
+| T5 | Implementación de las pantallas de SEG (patrones P1 y P3). **SEG-U02 y SEG-U03 entregadas** (L23, integradas en `c033122`); SEG-U04 y SEG-U05 quedan desbloqueadas por T7 y por D6 resuelto (L24); SEG-U06, U07 y U09 esperan T8, D5 y SMTP | S1, S6 | delegated | ⏳ |
+| T6 | Endurecer T3 según el review nativo: traducir la carrera de unicidad de correo y de reemplazo de roles a `400` con `campo`, pinear `direccion_ip` en las filas de auditoría, y validar el formato del correo con `400` + `campo` (UCE–SEG-02, excepción del paso 6; L24) | S1, S2 | — | ⏳ |
+| T7 | Backend de auditoría (G1): `GET /api/v1/auditoria` y `GET /api/v1/auditoria/{id}`, solo `administrador`, con filtros `usuario_id`, `fecha_desde`, `fecha_hasta` y `accion` | S2 | delegated | ✅ (L22, integrada en `6f5113b`) |
 | T8 | Backend de contraseñas (G2): `POST /api/v1/auth/password`; `POST /api/v1/auth/recuperacion` y `/confirmar` quedan sujetos a D5 (token) y a la aprobación de la dependencia SMTP | S1, S6 | — | ⏳ |
+| T9 | Auditoría con el catálogo cerrado de `accion` (nivel 3, L24): auditar el bloqueo por intentos fallidos como `bloquear` en vez de `acceder`, y alinear el filtro de `GET /auditoria` al catálogo completo | S2 | — | ⏳ |
 
 ---
 
@@ -1200,5 +1205,52 @@ Cierra el paso 4 de `odd/design/screen-design-plan.md` para la especificación d
 **Anomalía preexistente, no tocada**: `.atl/skill-registry.md` sigue modificado y sin commitear (G6, L20). No se commitea desde el carril.
 
 **Próximo paso**: SEG-U04 y SEG-U05 esperan T7; SEG-U09 y SEG-U06/U07 esperan T8, D5 y la aprobación de la dependencia SMTP. H1 y H2 necesitan una decisión del integrador antes de que el formulario se replique en el resto de los subsistemas, porque fijan el patrón.
+
+### L24 — Integración de T7 y T5, y modelado de cuentas y auditoría (2026-11-12)
+
+**Pedido del dueño, textual**: «Si necesitas hacer cambios en el nivel 1, 2 o 3 por esta cuestion de las cuentas, puedes hacerlo y modelarlo con tal que sea con un criterio Senior y justificado». Es una autorización explícita del dueño sobre la documentación fuente, que `AGENTS.md` prohíbe editar desde este repositorio por defecto; queda registrada acá porque cambia la política aplicada.
+
+**Integración**
+
+| Carril | Rama | Merge en `main` | Conflicto |
+|---|---|---|---|
+| T7 | `feat/seg-t7-auditoria` | `6f5113b` | ninguno |
+| T5 | `feat/seg-t5-pantallas-seg` | `c033122` | `## Log`: las dos entradas se apilaban al final; se conservan como unión |
+
+La entrada de T5 se renumeró de `L30` a `L23` para que la numeración quede monotona; el texto no se tocó. `## Tasks` es superficie del integrador y lo actualiza esta entrada, no los carriles.
+
+**Evidencia observada sobre `main` con los dos carriles integrados** (primera vez que T7 y T5 coexisten):
+
+- `ruff check .` desde `backend/` → `All checks passed!`; `ruff format --check .` → `50 files already formatted`.
+- `npx tsc --noEmit` → exit 0. `npm run lint` → exit 0.
+- `npm test` → **6 archivos, 44 passed**.
+- `npm run build` → exit 0, `index-oJ0OERvy.js` 251,14 kB.
+- **`pytest` completo: NO OBSERVADO.** Docker Desktop dejó de responder a mitad de la corrida (`docker exec` se cuelga incluso en `select now()`, `docker restart sigemi-db` no retorna) y las dos corridas que se intentaron quedaron bloqueadas sin salida. No hay veredicto del backend sobre `main`; no se infiere uno. Es infraestructura, no una regresión, y se reintenta cuando el stack responda.
+
+**Huecos de los carriles, resueltos como integrador**
+
+| Hueco | Decisión | Por qué |
+|---|---|---|
+| **H1** — el backend no valida el formato del correo | **Endurecer el backend**, y el nivel 1 lo respalda (excepción nueva del paso 6 de UCE–SEG–02). Pasa a T6 | El correo es la identidad de la cuenta y el único canal de recuperación; `type="email"` del navegador no es autoridad de una regla R3 |
+| **H2** — `## Screens` fija 100 y el backend acepta 120 | **`## Screens` se corrige a 120**; el nivel 3 no fija cota y bajar el backend rechazaría datos válidos. Frontend ajustado a 120 con test que lo pinea | El nivel 3 declara `TEXT`: la cota es de presentación, no de dominio |
+| **H3** — la edición son dos llamadas, no una transacción | **Se acepta como limitación registrada** (A4) | Atomicidad entre `PATCH` y `PUT .../roles` exigiría cambiar el contrato de T3, ya revisado; la UI informa el fallo parcial y «Reintentar» reanuda |
+| **D6** — el filtro cerrado deja afuera `acceder` | **Se resuelve en la fuente**: `accion` pasa a catálogo cerrado en el nivel 3, con `acceder` y `bloquear` como eventos distintos. SEG-U04 ofrece el catálogo completo, y alinear T7 es T9 | El nivel 3 dejaba `accion` como `varchar` libre con ejemplos; un vocabulario abierto es lo que permitió que un conjunto de pantalla divergiera del dato real |
+
+**Supuesto nuevo**
+
+| ID | Supuesto | Por qué |
+|---|---|---|
+| A4 | La edición de usuario no es atómica entre datos y roles (H3) | El contrato no ofrece transacción entre ambas rutas y no se inventó; la UI informa el fallo parcial con «Reintentar» |
+
+**Modelado en la documentación fuente** (las tres ediciones quedan sin commitear en el árbol de trabajo de `Docs`, que ya tenía cambios propios del dueño sin commitear: no se mezclan autores)
+
+1. **Nivel 1** (`TF_2026_Requerimientos_KLUKA_JORGE.md`): excepción del paso 6 de UCE–SEG–02 («si el correo no tiene un formato válido, el sistema rechaza la operación»); RF–14 aclara que el inicio de sesión y el bloqueo por intentos fallidos son eventos críticos **distintos**; fila 16 del historial de revisiones.
+2. **Nivel 2** (`modelo_dominio_sigemi_unificado.md`, §6): decisión 3 — `Usuario.correo_electronico` es la identidad de la cuenta y por eso se normaliza, valida formato y es único sin distinguir mayúsculas; decisión 4 — `Auditoría.accion` es catálogo cerrado, el bloqueo es `bloquear` y la baja lógica se audita como `modificar`.
+3. **Nivel 3** (`modelo_esquema_bd_sigemi.md`): `correo_electronico` unique con la regla de normalización y formato; `accion` como catálogo cerrado de seis valores con la regla de qué significa cada uno.
+
+**Por qué ahora y no después**: la auditoría es append-only. Una fila de bloqueo etiquetada `acceder` afirma que la persona entró cuando en realidad se la bloqueó, y no se corrige nunca. Un catálogo abierto, además, obliga a cada subsistema a inventar su vocabulario y hace imposible el filtro que UCE–SEG–04 pide.
+
+**Próximo paso**: T6 (carreras + `direccion_ip` + formato del correo, un solo carril sobre `backend/app/` y `backend/tests/`), después T9, después SEG-U04/U05. Nada de esto requiere migración: `accion` sigue siendo `varchar` y la normalización ya existe en el código.
+
 
 

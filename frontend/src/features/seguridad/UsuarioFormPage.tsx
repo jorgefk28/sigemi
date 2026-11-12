@@ -249,7 +249,7 @@ export function UsuarioFormPage({
             name="nombre"
             type="text"
             autoComplete="off"
-            maxLength={100}
+            maxLength={120}
             value={values.nombre}
             onChange={(event) => changeValue('nombre', event.target.value)}
             className={INPUT_CLASSES}
@@ -264,7 +264,7 @@ export function UsuarioFormPage({
             name="apellido"
             type="text"
             autoComplete="off"
-            maxLength={100}
+            maxLength={120}
             value={values.apellido}
             onChange={(event) => changeValue('apellido', event.target.value)}
             className={INPUT_CLASSES}

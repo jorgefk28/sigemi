@@ -263,4 +263,11 @@ describe('SEG-U03 alta y edición de usuario', { timeout: 20000 }, () => {
       await screen.findByRole('heading', { level: 1, name: 'Estado operativo del laboratorio' }),
     ).toBeInTheDocument();
   });
+
+  it('caps nombre and apellido at the 120 characters the backend accepts', async () => {
+    await abrirAlta();
+
+    expect(screen.getByLabelText('Nombre')).toHaveAttribute('maxlength', '120');
+    expect(screen.getByLabelText('Apellido')).toHaveAttribute('maxlength', '120');
+  });
 });
