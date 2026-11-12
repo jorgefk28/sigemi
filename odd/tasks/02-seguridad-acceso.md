@@ -287,6 +287,30 @@ No era un detalle cosmético: **contradecía la decisión 7 de L13** («un valor
 
 **Evidencia observada**: `pytest tests/test_usuarios.py` → **34 passed** (30 + 4) en 42,59 s; `pytest` completo → **354 passed**, 1 warning, 62,29 s; `ruff check .` → `All checks passed!`; `ruff format --check .` → `46 files already formatted`. El verificador confirmó, además, que no quedó ningún archivo de probe en el worktree.
 
+### L15 — Review nativo de T3: aprobado (2026-11-12)
+
+**Candidato**: `4980322..8f90fae`, `base_tree` `bb3efbf`, `candidate_tree` `78fab9a`, 10 archivos, 1421 líneas. Linaje `review-6a83da50eeaf78aa`.
+
+**Tier**: `high` (`review_due_reason: high_risk`), por `hot_path` en `backend/app/api/v1/auth.py` y por la escalada del ítem 2 (seguridad: guards de rol y credenciales). RDD encendido por `global`.
+
+**Lentes y por qué**: `risk` (guards de rol y manejo de credenciales), `resilience` (rechazos que no deben dejar escritura parcial), `readability` (contrato de API y mensajes al usuario), `reliability` (reglas de validación y auditoría). Consentimiento pre-answer `granted`, según la preferencia del dueño registrada en `AGENTS.md`.
+
+**Resultado**: `state: approved`, autoridad quemada (`review-acknowledged/v1`, `authority: burned`). **Ningún bloqueante**, ninguna corrección abierta. Readability: cero hallazgos.
+
+**Doce hallazgos informativos** (el cierre nativo los declara no bloqueantes y prohíbe re-correr el review de este candidato por ellos):
+
+| Hallazgo | Lente | Lectura |
+|---|---|---|
+| `R1-audit-ip-proxy` / `R4-AUDIT-IP-PROXY` | risk, resilience | Ya documentado en L5 (advisory 3): `request.client.host` devuelve la IP del proxy. Se refuerza ahora: **tres** módulos dependen del helper, así que la política de proxy confiable conviene fijarla en el work unit de despliegue. |
+| `R1-self-demotion-gap` | risk | Ya declarado en L13 decisión 8 y L14: quitarse el rol `administrador` a uno mismo no está prohibido por el nivel 1. Sigue siendo decisión del dueño. |
+| `R3-001` / `R4-EMAIL-UNIQUENESS-RACE` | reliability, resilience | La unicidad del correo es `SELECT` y después `INSERT`: dos altas concurrentes con el mismo correo pasan el pre-chequeo y la perdedora termina en `IntegrityError` sin manejar → `500`, no el `400` con `campo` que fija el contrato. La restricción de la base preserva la integridad; lo que se rompe es la **forma del error** bajo concurrencia. **Arreglo propuesto**: capturar `IntegrityError` alrededor del `commit` y traducirlo a `400` con `campo="correo_electronico"`. |
+| `R4-ROLES-REPLACE-RACE` | resilience | Mismo patrón en `PUT .../roles`: dos reemplazos simultáneos pueden colisionar en la PK de `usuario_rol` y devolver `500`. Doble submit de un formulario lento alcanza para dispararlo. |
+| `R3-002` | reliability | Ningún test afirma `direccion_ip` en una fila de auditoría. Es determinístico: un `None` o una IP constante pasarían la suite. |
+| `R3-003` … `R3-007` | reliability | Huecos de cobertura: guards de rol no probados en `GET /usuarios/{id}`, `PATCH` y `PUT .../roles`; orden del listado afirmado con dos usuarios de **igual** apellido (no distingue orden por `(apellido, nombre, correo)`); rama idempotente de `PUT .../roles` sin test; `offset > 0` y paginación de `/roles` sin test; cota inferior de 8 caracteres nunca afirmada como aceptada (el positivo usa 10). |
+
+**Disposición**: todo lo anterior es trabajo posterior, en un candidato nuevo, no una razón para re-abrir este. No se arregló en esta sesión porque el cierre nativo lo clasifica como informativo y ampliar el alcance sin autorización choca con el `## Scope guard` de `AGENTS.md`. Los dos `WARNING` de concurrencia y el hueco de `direccion_ip` son los primeros candidatos para el próximo work unit de SEG.
+
+
 
 
 
