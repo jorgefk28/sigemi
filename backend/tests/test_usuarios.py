@@ -616,3 +616,105 @@ def test_delete_is_not_exposed(client: TestClient, usuario_factory):
     response = client.delete(f"{USUARIOS_URL}/{usuario.id}", headers=_headers(token))
 
     assert response.status_code == 405
+
+
+# ---------------------------------------------------------------------------
+# Regresión de la verificación independiente: blancos y comodines
+# ---------------------------------------------------------------------------
+
+
+def test_create_user_rejects_blank_fields_with_field(
+    client: TestClient, usuario_factory
+):
+    """Blank text is business validation: 400 + campo, never a stored ``""``."""
+    admin = usuario_factory(roles=("administrador",))
+    token = _token(client, admin.correo_electronico)
+
+    base = {
+        "nombre": "Ana",
+        "apellido": "Perez",
+        "correo_electronico": "ana@sigemi.test",
+        "contrasena": "Secreta123",
+        "roles": ["profesor"],
+    }
+
+    for campo, detalle in (
+        ("nombre", "El nombre no puede estar vacío"),
+        ("apellido", "El apellido no puede estar vacío"),
+        ("correo_electronico", "El correo electrónico no puede estar vacío"),
+    ):
+        response = client.post(
+            USUARIOS_URL,
+            json={**base, campo: "   "},
+            headers=_headers(token),
+        )
+
+        assert response.status_code == 400, (campo, response.text)
+        assert response.json() == {"detail": detalle, "campo": campo}
+
+
+def test_update_user_rejects_blank_fields_with_field(
+    client: TestClient, db: Session, usuario_factory
+):
+    """The same normalization applies on modification."""
+    token, _ = _admin_token(client, usuario_factory)
+    usuario = usuario_factory(correo="beto@sigemi.test")
+
+    for campo, detalle in (
+        ("nombre", "El nombre no puede estar vacío"),
+        ("apellido", "El apellido no puede estar vacío"),
+        ("correo_electronico", "El correo electrónico no puede estar vacío"),
+    ):
+        response = client.patch(
+            f"{USUARIOS_URL}/{usuario.id}",
+            json={campo: "   "},
+            headers=_headers(token),
+        )
+
+        assert response.status_code == 400, (campo, response.text)
+        assert response.json() == {"detail": detalle, "campo": campo}
+
+    db.refresh(usuario)
+    assert usuario.correo_electronico == "beto@sigemi.test"
+
+
+def test_validate_before_apply_preserves_row_state(
+    client: TestClient, db: Session, usuario_factory
+):
+    """A payload rejected in one field must not half-apply the others."""
+    token, _ = _admin_token(client, usuario_factory)
+    usuario = usuario_factory(correo="beto@sigemi.test")
+    nombre_original = usuario.nombre
+
+    response = client.patch(
+        f"{USUARIOS_URL}/{usuario.id}",
+        json={"nombre": "NuevoNombre", "estado": "invalido"},
+        headers=_headers(token),
+    )
+
+    assert response.status_code == 400
+    db.refresh(usuario)
+    assert usuario.nombre == nombre_original
+    modificaciones = (
+        db.query(Auditoria).filter_by(entidad_id=usuario.id, accion="modificar").count()
+    )
+    assert modificaciones == 0
+
+
+def test_list_escapes_like_wildcards_literally(
+    client: TestClient, db: Session, usuario_factory
+):
+    """``q`` matches ``_`` and ``%`` literally instead of as wildcards."""
+    token, _ = _admin_token(client, usuario_factory)
+    con_guion_bajo = usuario_factory(correo="a_b@sigemi.test")
+    con_guion_bajo.nombre = "A_B"
+    sin_guion_bajo = usuario_factory(correo="axb@sigemi.test")
+    sin_guion_bajo.nombre = "AxB"
+    db.flush()
+
+    response = client.get(USUARIOS_URL, params={"q": "_"}, headers=_headers(token))
+
+    assert response.status_code == 200
+    ids = [item["id"] for item in response.json()["items"]]
+    assert str(con_guion_bajo.id) in ids
+    assert str(sin_guion_bajo.id) not in ids

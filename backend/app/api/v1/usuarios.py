@@ -188,10 +188,12 @@ def crear_usuario(
         roles = resolver_roles(db, datos.roles)
         nombre = normalizar_texto("nombre", "El nombre", datos.nombre)
         apellido = normalizar_texto("apellido", "El apellido", datos.apellido)
+        correo = normalizar_texto(
+            "correo_electronico", "El correo electrónico", datos.correo_electronico
+        ).lower()
     except ReglaDeUsuario as regla:
         return _rechazo(regla)
 
-    correo = datos.correo_electronico.strip().lower()
     if _correo_en_uso(db, correo):
         return _rechazo(
             ReglaDeUsuario(
@@ -272,7 +274,11 @@ def actualizar_usuario(
             )
 
         if "correo_electronico" in enviados:
-            correo = enviados["correo_electronico"].strip().lower()
+            correo = normalizar_texto(
+                "correo_electronico",
+                "El correo electrónico",
+                enviados["correo_electronico"],
+            ).lower()
             if _correo_en_uso(db, correo, excluir=usuario.id):
                 raise ReglaDeUsuario(
                     "Ya existe un usuario con ese correo electrónico",

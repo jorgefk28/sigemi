@@ -243,7 +243,7 @@ Eso **contradice** el contrato de idioma previo de `AGENTS.md` («commit message
 4. **`PUT /usuarios/{id}/roles` reemplaza el conjunto completo** (idempotente). Un `PATCH` parcial obligaría a inventar una semántica de merge que ningún requisito pide.
 5. **`limit` se recorta a 100, no se rechaza**: el contrato dice «capped at 100» y el cuerpo devuelve el `limit` efectivo, así el cliente se entera del recorte.
 6. **Un `PATCH` sin campos responde `400`** (`"No se enviaron campos para modificar"`) en vez de escribir una auditoría vacía.
-7. **El texto se normaliza** en `nombre`, `apellido` y `correo_electronico` (trim; el correo además a minúsculas). Un valor en blanco responde `400` con `campo`.
+7. **El texto se normaliza** en `nombre`, `apellido` y `correo_electronico` (trim; el correo además a minúsculas). Un valor en blanco responde `400` con `campo`. Por eso los schemas solo llevan cotas **superiores**: un `min_length` habría convertido el blanco en el `422` automático en vez del `400` con mensaje. Ver la corrección en L14.
 8. **El único autobloqueo prohibido es el que nombra el requisito**: desactivar la propia cuenta (paso 7, excepción). Quitarse el rol `administrador` a uno mismo **no** está prohibido por el nivel 1 y no se inventó la regla; queda registrado como hueco a decidir por el dueño.
 9. **Fortaleza de contraseña** (S6) en `app/services/usuarios.py::validar_contrasena`, con orden fijo: mínimo 8 caracteres, techo de 72 **bytes UTF-8**, al menos una letra, al menos un dígito. Los límites de longitud salieron del schema de Pydantic (`UsuarioCreate.contrasena`), porque un `max_length` habría producido el `422` automático en vez del `400` con mensaje que exige S6.
 
@@ -268,6 +268,25 @@ Eso **contradice** el contrato de idioma previo de `AGENTS.md` («commit message
 **Nota de operación**: `backend/pytest.ini` fija `addopts = -q`. Un `-q` adicional en la línea de comando compone `-qq` y **borra la línea de resumen**, así que el conteo de passed hay que leerlo de los puntos o con `-o addopts=`. No es un defecto de la suite, pero explica por qué una corrida verde no muestra «N passed».
 
 **Anomalía preexistente, no tocada**: `.atl/skill-registry.md` estaba modificado al abrir el carril. Es la regeneración local del registry, que reescribe las rutas absolutas del árbol principal a `C:\work\sigemi-t3` y elimina la fila de `impeccable` que L11 documenta como excluida a propósito. No se commitea: es estado del carril, no del repositorio.
+
+### L14 — Verificación independiente de T3 y corrección (2026-11-12)
+
+Verificador independiente sobre `c2bd43f`. Veredicto: **un bloqueante**; S2, S3 y S6 pass; S1 fail por el bloqueante. Invariantes de autorización, baja lógica, autodesactivación, auditoría, listado, roles y no-regresión de `/auth` pasaron.
+
+**Bloqueante B1 — correo en blanco aceptado**. `correo_electronico = "   "` (3 espacios) pasaba el `min_length=3` de Pydantic y, tras el `strip`, se persistía como cadena vacía: `POST /usuarios` respondía `201` y `PATCH` respondía `200`. Reproducido con dos probes, `201 == 400` y `200 == 400` fallando.
+
+No era un detalle cosmético: **contradecía la decisión 7 de L13** («un valor en blanco responde `400` con `campo`»), que el código no cumplía para el correo. Lo detectó un verificador leyendo el log contra el código, que es exactamente su trabajo; mis 30 tests no lo cubrían porque probaban el contrato que yo había escrito, no el que yo había documentado.
+
+**Corrección** (una sola pasada, más los probes del verificador como tests):
+
+- `correo_electronico` pasa por `normalizar_texto` en el alta y en la modificación, igual que `nombre` y `apellido`, y recién después se pasa a minúsculas.
+- `UsuarioCreate` y `UsuarioUpdate` conservan solo cotas superiores: un `min_length` en cualquier campo de texto libre habría devuelto `422` en vez del `400` con `campo`. Vale también para el advisory 1 del verificador (1-2 espacios daban `422`).
+- Cuatro tests de regresión nuevos: blancos en el alta, blancos en la modificación, `validate-before-apply` (un payload rechazado por `estado` no aplica el `nombre` que lo acompañaba) y comodines de `LIKE` escapados en `q` (`_` y `%` matchean literal).
+
+**Advisory aceptado, sin cambio**: quitarse el rol `administrador` a uno mismo sigue sin bloquearse. El nivel 1 no lo prohíbe y no se inventa la regla; queda como hueco declarado en la decisión 8 de L13 para que lo decida el dueño.
+
+**Evidencia observada**: `pytest tests/test_usuarios.py` → **34 passed** (30 + 4) en 42,59 s; `pytest` completo → **354 passed**, 1 warning, 62,29 s; `ruff check .` → `All checks passed!`; `ruff format --check .` → `46 files already formatted`. El verificador confirmó, además, que no quedó ningún archivo de probe en el worktree.
+
 
 
 

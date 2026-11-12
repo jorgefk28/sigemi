@@ -29,22 +29,23 @@ class UsuarioRead(BaseModel):
 class UsuarioCreate(BaseModel):
     """Payload for a new user (UCE-SEG-02, paso 4).
 
-    ``contrasena`` carries no length bounds on purpose: the strength rule (S6)
-    is business validation and answers ``400`` with ``campo``, so it must not be
-    pre-empted by the automatic ``422`` that a schema bound would raise.
+    Only upper bounds live here. Lower bounds and the strength rule (S6) are
+    business validation and must answer ``400`` with ``campo``; a schema bound
+    would pre-empt them with the automatic ``422`` instead. Blank and oversized
+    values are rejected by ``app.services.usuarios``.
     """
 
-    nombre: str = Field(min_length=1, max_length=120)
-    apellido: str = Field(min_length=1, max_length=120)
-    correo_electronico: str = Field(min_length=3, max_length=255)
+    nombre: str = Field(max_length=120)
+    apellido: str = Field(max_length=120)
+    correo_electronico: str = Field(max_length=255)
     contrasena: str
     roles: list[str]
 
 
 class UsuarioUpdate(BaseModel):
-    nombre: str | None = Field(default=None, min_length=1, max_length=120)
-    apellido: str | None = Field(default=None, min_length=1, max_length=120)
-    correo_electronico: str | None = Field(default=None, min_length=3, max_length=255)
+    nombre: str | None = Field(default=None, max_length=120)
+    apellido: str | None = Field(default=None, max_length=120)
+    correo_electronico: str | None = Field(default=None, max_length=255)
     estado: str | None = None
 
 
