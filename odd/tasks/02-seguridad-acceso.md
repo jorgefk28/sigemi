@@ -1105,4 +1105,45 @@ Cierra el paso 4 de `odd/design/screen-design-plan.md` para la especificación d
 
 **Pendiente de decisión del dueño**: D4 (bloqueo temporal de S5 contra el estado «Inhabilitado» del nivel 1) queda en pie como desvío deliberado registrado; si el dueño quiere que la constancia viva en `## Specs`, la escribe el integrador. D5 (token de recuperación) sigue sin decidir formalmente, aunque la recomendación es token firmado sin estado, sin migración.
 
+### L22 — Evidencia de T7: backend de auditoría (2026-11-12, carril `feat/seg-t7-auditoria`)
+
+**Superficie implementada** (`/api/v1`, las dos rutas exigen rol `administrador`):
+
+| Método | Ruta | UCE-SEG-04 |
+|---|---|---|
+| `GET` | `/auditoria` | pasos 2-4: listado paginado con `usuario_id`, `fecha_desde`, `fecha_hasta`, `accion`, `limit`, `offset` |
+| `GET` | `/auditoria/{id}` | pasos 5-6: cabecera del evento + `cambio_auditoria` (0..N) |
+
+**Decisiones de contrato**:
+
+1. **El filtro `accion` usa el conjunto cerrado de D6**: `crear`, `modificar`, `eliminar`, `consultar`; cualquier otro valor responde `400` con `{"detail", "campo": "accion"}`. **Hueco reportado, no resuelto acá**: T2 escribe `accion = "acceder"` en cada login exitoso y en cada bloqueo, y ese valor **no** está entre los cuatro que el nivel 3 ejemplifica ni entre los que D6 fija. Consecuencia real: los eventos de login no se pueden filtrar (sí aparecen en el listado sin filtro, que es exactamente lo que D6 prescribe para valores fuera del conjunto). Decisión del dueño pendiente: (a) agregar `acceder` al conjunto filtrable —cambio de `## Screens`/D6—, o (b) que T2 audite el login con `consultar` —cambio de contrato de T2—. Ninguna de las dos se tomó desde este carril.
+2. **`fecha_desde` / `fecha_hasta` son fechas (`YYYY-MM-DD`), no timestamps**, y se interpretan como **días UTC**: `fecha_hora` se almacena timezone-aware en UTC (`app/db/base.py`), el borde inferior es `>= fecha_desde 00:00Z` y el superior `< (fecha_hasta + 1 día) 00:00Z`, así **ambos extremos son inclusivos a granularidad de día** y el evento de las 23:59:59.999999 entra. **Supuesto declarado**: el día es UTC, no el día local del laboratorio (UTC-3). Si el dueño quiere días locales, hace falta una decisión de zona horaria y ese trabajo no está hecho; queda anotado para que el integrador lo lleve a `## Specs` si lo acepta.
+3. **`cambio_auditoria` se devuelve ordenado por `campo`** (alfabético). La tabla no tiene columna de orden y el orden de inserción no es estable en SQL: mejor un orden determinista y previsible que uno arbitrario.
+4. **Los valores de `contrasena_hash` y `contrasena` se enmascaran a `null` y el `campo` se conserva**, para que la UI pueda rotular «Contraseña actualizada» (SEG-U05). Hoy T3 nunca escribe la contraseña en auditoría; el enmascarado es defensa en profundidad y tiene test propio.
+5. **El listado devuelve `usuario_nombre` + `usuario_apellido`** (la columna «Usuario» de SEG-U04 se resuelve por `usuario_id`) y **no** devuelve `entidad_id`; el detalle sí, porque SEG-U05 lo pone en la cabecera.
+6. **`Paginacion` se reutiliza de `app.schemas.access`** en vez de duplicar el sobre: una sola definición del contrato de listados. No se tocó `access.py`.
+7. **No existe ruta de escritura**: `POST`, `PATCH`, `PUT` y `DELETE` sobre las dos rutas responden `405`. El registro es inmutable (UCE-SEG-04, L2434).
+8. **Una consulta no se audita**: RF-14 pide eventos «significativos o críticos», así que ni el listado ni el detalle escriben una fila. Un test compara el conteo de `auditoria` antes y después de ambas rutas.
+
+**Archivos escritos**: `backend/app/api/v1/auditoria.py` (nuevo), `backend/app/schemas/audit.py` (nuevo), `backend/tests/test_auditoria.py` (nuevo, 15 tests), `backend/tests/test_auditoria_probes.py` (nuevo, 4 probes del verificador) y una línea de wiring en `backend/app/api/v1/router.py` (sin ella no hay ruta). No se toca `alembic/versions/` ni `app/core/config.py`: T7 no requiere migración.
+
+**Fuera de alcance respetado**: la captura de `direccion_ip` en las filas que escriben las mutaciones es T6. Acá solo se **expone** la columna almacenada, que SEG-U04 y SEG-U05 piden como dato de la pantalla.
+
+**Evidencia observada**:
+
+- RED previo: `pytest tests/test_auditoria.py -o addopts=` con la implementación ausente → **15 failed**.
+- GREEN: `pytest tests/test_auditoria.py -o addopts=` → **15 passed, 1 warning in 24.48 s**.
+- Probes del verificador como tests: `pytest tests/test_auditoria_probes.py -o addopts=` → **4 passed, 1 warning in 16.30 s**.
+- Suite completa desde `backend/` con `DATABASE_URL` apuntando a `sigemi_t7` → **373 passed, 1 warning in 144.00 s**, exit 0 (baseline del carril: 354 en `4bb0fc5`).
+- `ruff check .` → `All checks passed!`; `ruff format --check .` → `50 files already formatted`.
+- Diferencial: no aplica. El cambio no modifica ninguna función ni comando existente; el único archivo preexistente tocado es `router.py`, y la suite prueba en verde `/auth`, `/usuarios` y `/roles`.
+
+**Verificación independiente** sobre `3861647`: **sin bloqueantes y sin advisories**. Veredicto por ítem: S2 pass, SEG-U04 pass, SEG-U05 pass, D6 pass, contrato de respuesta pass. 41 probes ad-hoc en un directorio temporal fuera del worktree, 0 archivos dejados en el repo y `auditoria` / `cambio_auditoria` / `usuario` de `sigemi_t7` sin filas al terminar (transacción revertida). Los 4 probes que valían la pena quedaron commiteados en `test_auditoria_probes.py`.
+
+**Risk**: ítem 2 (seguridad: guards) por los `require_roles("administrador")` de las dos rutas; por eso se corrió verificador independiente. **Assess nativo**: `risk: medium` (`executable_change`), `review_due: false`, `review_due_reason: under_budget`; no hubo lentes ni review nativo en este candidato.
+
+**Higiene**: `.atl/skill-registry.md` sigue modificado sin commitear (G6, preexistente al abrir el carril). No se commiteó desde acá.
+
+**Pendiente**: la fila T7 de `## Tasks` la marca el integrador (`## Tasks` no es superficie de este carril). El supuesto del punto 2 y el hueco del punto 1 necesitan decisión del dueño; el resto de T7 queda entregado.
+
 
