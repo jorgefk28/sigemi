@@ -222,4 +222,30 @@ Eso **contradice** el contrato de idioma previo de `AGENTS.md` («commit message
 
 **Consecuencia sobre T3**: el criterio «≥ 320 en verde sobre la base actual» vuelve a ser observable. La base de los dos carriles pasa a este commit.
 
+### L13 — T4: inventario y especificaciones de pantallas de SEG (2026-11-12, carril `feat/seg-t4-inventario`)
+
+**Producido**: `odd/design/seg-screens-draft.md`, pasos 1-3 de `odd/design/screen-design-plan.md` (inventario, patrón y especificación por pantalla). **No** incluye el paso 4: la aprobación es del dueño y todavía no ocurrió. `## Specs`, `## Screens` y `## Tasks` no se tocaron: son del integrador y del carril de T3.
+
+**Inventario derivado** (6 UCE → 9 pantallas + 1 que no genera pantalla):
+
+| Patrón | Pantallas |
+|---|---|
+| P1 | SEG-U02 Listado de usuarios, SEG-U04 Listado de auditoría |
+| P2 | SEG-U05 Detalle de evento, SEG-U08 Mi perfil |
+| P3 | SEG-U01 Iniciar sesión (entregada), SEG-U03 Alta/edición de usuario, SEG-U06 Solicitar recuperación, SEG-U07 Definir nueva contraseña, SEG-U09 Cambiar contraseña |
+
+UCE–SEG-03 (Cerrar Sesión) no nombra pantalla: es una acción del armazón, ya entregada en S4 de `03-shell-frontend.md`. Se registra en el inventario para que el mapeo quede completo y no se "descubra" después como faltante.
+
+**Hallazgo principal — cuatro pantallas dependen de endpoints sin dueño.** `GET /api/v1/auditoria`, `GET /api/v1/auditoria/{id}`, `POST /api/v1/auth/password` y los dos de recuperación no existen y ninguna tarea los cubre: T3 es CRUD de usuarios, T4 diseño, T5 frontend. Sin una tarea de backend nueva, SEG-U04, SEG-U05, SEG-U06, SEG-U07 y SEG-U09 no se implementan. T5 no puede empezar por el par P1+P3 completo: SEG-U02 y SEG-U03 sí (T3), SEG-U04 no.
+
+**Hallazgo — el nivel 3 no tiene almacenamiento para el token de recuperación.** UCE–SEG-07 pide un token con TTL por correo; `otp` cuelga de `analisis_id` (nivel 3 L178-187) y es de otro subsistema. Se proponen dos salidas y ninguna se decide acá: token firmado sin estado (recomendada, sin migración) o tabla nueva (cambio del nivel 3, dueño integrante). Aparte, el envío por correo es una dependencia de runtime nueva y `AGENTS.md` la prohíbe sin aprobación explícita.
+
+**Hallazgo — divergencia nivel 1 contra implementación en el bloqueo por intentos.** UCE–SEG-01 exc. paso 5 (L2360) dice que al quinto fallo la cuenta pasa a estado **«Inhabilitado»**; S5 implementa bloqueo temporal con `bloqueado_hasta` y 423, verificado en L5. El nivel 1 gana: es una divergencia de la implementación, no una decisión de pantalla. Registrado como D4 del borrador con la recomendación de dejar S5 como desvío deliberado del dueño y no escribir «cuenta inhabilitada» en la UI mientras el bloqueo sea temporal.
+
+**Requisito faltante reportado, no diseñado**: UCE–SEG-02 define la baja lógica y ningún paso define reactivar una cuenta (G4). No se agregó el botón. Tampoco se inventó el alta de `profesional` (`matricula`, `especialidad`): ningún paso de SEG lo pide (G5).
+
+**Decisiones abiertas del borrador**: D1 contraseña opcional en la edición de usuario; D2 multi-selección de roles (nivel 1 dice «uno», nivel 2 y S3 dicen acumulables); D3 entrada a «Mi perfil» por menú del header en vez de página del sidebar; D4 (arriba); D5 (arriba); D6 conjunto cerrado del filtro `accion`.
+
+**Defecto de herramientas observado**: al abrir el carril, `git status` ya traía `.atl/skill-registry.md` modificado sin commit: `gentle-ai skill-registry refresh` reescribió el título y las rutas absolutas de los tres skills de alcance proyecto (`C:\Users\...\sigemi\...` → `C:\work\sigemi-t4\...`). Cada worktree genera rutas distintas, así que el archivo cambia por carril y produce conflicto por bytes que nadie editó, contra el objetivo de L10/L11 de que la base no dependa del ambiente. No se tocó ni se commiteó en este work unit (G6).
+
 
