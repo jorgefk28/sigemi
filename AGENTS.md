@@ -219,8 +219,14 @@ A lane is safe only when all four hold. If one fails, the work is serialized ins
 - Never run `docker compose down -v` from any worktree: the `pgdata` volume is shared
   and may hold manually seeded accounts.
 - `.env` is git-ignored and absent in a fresh worktree. Configuration comes from the
-  defaults in `app/core/config.py` plus per-lane environment variables; never copy
-  `.env` files between worktrees.
+  defaults in `app/core/config.py` plus per-lane configuration. Never copy a `.env`
+  between worktrees: another worktree's file points at another lane's database and may
+  carry a real secret.
+- A lane may have its own `.env`, created from scratch and carrying only `DATABASE_URL`
+  for its own database. It is lane state, not a copy of anything, and it is git-ignored.
+  It is the mechanism that survives a whole session: a shell variable set inside an
+  agent command dies with the process that set it, so `$env:DATABASE_URL` reaches one
+  command and not the next.
 
 ### One database per lane
 
@@ -239,18 +245,51 @@ A lane is safe only when all four hold. If one fails, the work is serialized ins
 | Resource | Owner | Rule for other lanes |
 |---|---|---|
 | `backend/alembic/versions/` | integrator | A lane that needs a migration stops and reports; it never adds a revision |
-| `odd/tasks/<feature>.md` | one lane | Another lane writes `odd/design/<feature>-draft.md`; the integrator merges it after human review |
+| `odd/tasks/<feature>.md` · `## Specs` and `## Screens` | integrator | A lane reports the required change and cites the `S#` or UCE behind it; it never edits them |
+| `odd/tasks/<feature>.md` · `## Tasks` | one lane | The lane that owns the document updates its own task status; every other lane leaves the table untouched |
+| `odd/tasks/<feature>.md` · `## Log` | append-only, any lane | Append at the end of the file; never edit, reorder or delete an existing entry |
+| `odd/design/<feature>-draft.md` | one lane per draft | The integrator merges it into `## Screens` after human review |
 | `backend/app/core/config.py` | integrator | A lane requests a setting; it does not reconfigure the project |
 | `main` | integrator | Lanes commit only to their own branch |
 | `AGENTS.md` | integrator | A lane reports a needed policy change; it never edits policy mid-run |
+
+The invariant is **one writer per section**, not one lane per document. Two lanes may
+work on the same feature document, differentiated by task, when both conditions hold:
+
+- their edit surfaces are disjoint: different files, never different sections of one file;
+- neither task consumes the other's output. Design instantiates requirements, never the
+  code a sibling lane has not written yet.
+
+Under those conditions exactly one lane edits `## Tasks` and the other stays append-only
+on `## Log` plus its own `odd/design/<feature>-draft.md`. Conflicts then degrade to two
+entries appended at the end of the file, which merge as a union. A third lane on the
+same document is serialized: from there the merge cost dominates the gain.
+
+### Lane binding (what a lane derives, never what it is told)
+
+A lane session receives one pointer: the feature document. Everything else is derived:
+
+- **Task** — `git branch --show-current` carries it: the task token in the branch is the
+  task this worktree owns. A branch without a task token stops the lane and reports.
+- **Database** — the lane-local `.env` at the worktree root.
+- **Ownership** — the table above.
+- **Closing** — one line per applicable check, `<command>: <observed result>`, plus the
+  `S#` covered and any assumption it had to record.
+
+Policy is never dictated in a prompt. A prompt is a cache of this file, and a cache
+without invalidation drifts: when the prompt and this file disagree, the agent follows
+whichever it read last, which is the unversioned one. The prompt carries the pointer;
+this file carries the rules.
 
 ### Worktree shape
 
 - Short path without spaces. This repository path contains a space and a year, so a
   child path that repeats them produces quoting defects in docker, venv and npm. Use
   `C:\work\<slug>`, never a subdirectory of this repository.
-- One branch per lane, `feat/<feature>-<lane>`. The integrator merges with `--no-ff`
-  once the lane's applicable checks are green and reported.
+- One branch per lane, `feat/<feature>-<task>` with an optional slug, for example
+  `feat/seg-t3-usuarios`. The task token is mandatory: it is how the lane knows which
+  task it owns. The integrator merges with `--no-ff` once the lane's applicable checks
+  are green and reported.
 - `backend/.venv` and `frontend/node_modules` are git-ignored and absent in a new
   worktree. Bootstrap each one (`python -m venv .venv` plus
   `pip install -r requirements.txt`; `npm ci`); never copy them between worktrees.
