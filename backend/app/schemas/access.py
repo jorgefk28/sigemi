@@ -27,11 +27,18 @@ class UsuarioRead(BaseModel):
 
 
 class UsuarioCreate(BaseModel):
+    """Payload for a new user (UCE-SEG-02, paso 4).
+
+    ``contrasena`` carries no length bounds on purpose: the strength rule (S6)
+    is business validation and answers ``400`` with ``campo``, so it must not be
+    pre-empted by the automatic ``422`` that a schema bound would raise.
+    """
+
     nombre: str = Field(min_length=1, max_length=120)
     apellido: str = Field(min_length=1, max_length=120)
     correo_electronico: str = Field(min_length=3, max_length=255)
-    contrasena: str = Field(min_length=8, max_length=128)
-    roles: list[str] = Field(min_length=1)
+    contrasena: str
+    roles: list[str]
 
 
 class UsuarioUpdate(BaseModel):
@@ -42,4 +49,22 @@ class UsuarioUpdate(BaseModel):
 
 
 class RolesUpdate(BaseModel):
-    roles: list[str] = Field(min_length=1)
+    """Full replacement of a user's role set; the closed catalog decides."""
+
+    roles: list[str]
+
+
+class Paginacion(BaseModel):
+    """Envelope every list endpoint answers (``AGENTS.md``)."""
+
+    total: int
+    limit: int
+    offset: int
+
+
+class UsuarioList(Paginacion):
+    items: list[UsuarioRead]
+
+
+class RolList(Paginacion):
+    items: list[RolRead]

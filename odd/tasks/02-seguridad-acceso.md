@@ -59,7 +59,7 @@ El nivel 1 exige validar la fortaleza (UCE-SEG-02 paso 6, UCE-SEG-08 paso 7) sin
 |---|---|---|---|---|
 | T1 | Primitivas de seguridad (bcrypt, JWT), servicio de auditoría append-only, migración de datos del catálogo de roles, fixtures de test con rollback | S2, S3, S4 | delegated (2 en paralelo) | ✅ |
 | T2 | API de autenticación: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `get_current_user`, `require_roles`, wiring del router | S1, S4, S5 | delegated | ✅ |
-| T3 | CRUD de usuarios y asignación de roles (solo `administrador`), con auditoría de cada alta/baja/modificación | S1, S2, S3, S6 | — | ⏳ |
+| T3 | CRUD de usuarios y asignación de roles (solo `administrador`), con auditoría de cada alta/baja/modificación | S1, S2, S3, S6 | inline | ✅ |
 | T4 | Inventario y especificación de las pantallas de SEG (pasos 1-4 de `odd/design/screen-design-plan.md`) | S1, S6 | — | ⏳ |
 | T5 | Implementación de las pantallas de SEG aprobadas en T4 (patrones P1 y P3) | S1, S6 | — | ⏳ |
 
@@ -221,5 +221,53 @@ Eso **contradice** el contrato de idioma previo de `AGENTS.md` («commit message
 **Evidencia observada**: 500 tokens generados, `tamper_signature` aplicado a cada uno → **0 firmas idénticas**, encabezado y payload preservados en los 500. Los dos probes dirigidos: `2 passed`. Suite completa desde `backend/`: **320 passed, 1 warning, 20.29 s**. `ruff check .` exit 0 y `ruff format --check .` → 42 archivos ya formateados.
 
 **Consecuencia sobre T3**: el criterio «≥ 320 en verde sobre la base actual» vuelve a ser observable. La base de los dos carriles pasa a este commit.
+
+### L13 — Evidencia de T3 (2026-11-12)
+
+**Superficie implementada** (`/api/v1`, todas las rutas exigen rol `administrador`):
+
+| Método | Ruta | UCE-SEG-02 |
+|---|---|---|
+| `GET` | `/usuarios` | paso 2 (listado), con `q`, `correo_electronico`, `estado`, `rol`, `limit`, `offset` |
+| `GET` | `/usuarios/{id}` | selección de un usuario existente |
+| `POST` | `/usuarios` | pasos 4-7 (alta) |
+| `PATCH` | `/usuarios/{id}` | modificación y baja lógica (`estado = inactivo`) |
+| `PUT` | `/usuarios/{id}/roles` | paso 5 (asignación de roles) |
+| `GET` | `/roles` | paso 5: catálogo cerrado que alimenta el selector |
+
+**Decisiones de contrato** (fijadas acá porque el nivel 1 no las cubre y las heredan los otros cuatro subsistemas):
+
+1. **Toda validación de campo responde `400` con `{"detail", "campo"}`**, incluida la unicidad del correo. El paso 6 de UCE-SEG-02 agrupa «unicidad del correo» y «fortaleza de la contraseña» como la misma validación, así que ambas usan la misma forma y el formulario puede ubicar el mensaje sin casos especiales. No se usa `409`: el contrato de `AGENTS.md` §Response contract ya nombra el `400` con `campo` como la respuesta de validación por campo, y dos formas para el mismo grupo de reglas obliga a la SPA a distinguirlas.
+2. **La baja es `PATCH` con `estado = inactivo`**, no un `DELETE`: S1 prohíbe el borrado físico y `DELETE /usuarios/{id}` responde `405` (test `test_delete_is_not_exposed`).
+3. **La baja lógica se audita como `modificar`**, no como `eliminar`: la fila no se borra, y la auditoría debe decir lo que pasó. El cambio queda como `("estado", "activo", "inactivo")`.
+4. **`PUT /usuarios/{id}/roles` reemplaza el conjunto completo** (idempotente). Un `PATCH` parcial obligaría a inventar una semántica de merge que ningún requisito pide.
+5. **`limit` se recorta a 100, no se rechaza**: el contrato dice «capped at 100» y el cuerpo devuelve el `limit` efectivo, así el cliente se entera del recorte.
+6. **Un `PATCH` sin campos responde `400`** (`"No se enviaron campos para modificar"`) en vez de escribir una auditoría vacía.
+7. **El texto se normaliza** en `nombre`, `apellido` y `correo_electronico` (trim; el correo además a minúsculas). Un valor en blanco responde `400` con `campo`.
+8. **El único autobloqueo prohibido es el que nombra el requisito**: desactivar la propia cuenta (paso 7, excepción). Quitarse el rol `administrador` a uno mismo **no** está prohibido por el nivel 1 y no se inventó la regla; queda registrado como hueco a decidir por el dueño.
+9. **Fortaleza de contraseña** (S6) en `app/services/usuarios.py::validar_contrasena`, con orden fijo: mínimo 8 caracteres, techo de 72 **bytes UTF-8**, al menos una letra, al menos un dígito. Los límites de longitud salieron del schema de Pydantic (`UsuarioCreate.contrasena`), porque un `max_length` habría producido el `422` automático en vez del `400` con mensaje que exige S6.
+
+**Auditoría** (RF-14): un alta escribe una fila `crear` con cambios `correo_electronico`, `estado` y `roles`; una modificación escribe una fila `modificar` con un `cambio_auditoria` por campo realmente cambiado (valor anterior y nuevo); un reemplazo de roles escribe `("roles", "anterior", "nuevo")`. La contraseña nunca se escribe en auditoría ni se devuelve en ninguna respuesta (aserción explícita en el test del alta).
+
+**Archivos escritos, incluidos tres fuera de la tabla del carril y por qué**:
+
+- `backend/app/api/v1/router.py` — sin el wiring no hay ruta; dos líneas.
+- `backend/app/api/deps.py` — `client_ip(request)` pasa a `deps.py` para no duplicar el helper en cada módulo que escribe auditoría. `app/api/v1/auth.py` lo consume ahora desde ahí: **el comportamiento es idéntico**, y los tres módulos de tests de auth lo siguen probando en verde.
+- `backend/app/schemas/access.py` — `UsuarioList`, `RolList` y la relajación de los límites de contraseña explicada en el punto 9.
+
+**Prueba de comportamiento previo**: `serializar_usuario` cambió por dentro (ahora delega en `serializar_usuarios`, que resuelve los roles de toda la página en una consulta). Diferencial contra la implementación del commit base, ejecutado desde `backend/` con la base y el catálogo reales, para 0, 1 y 3 roles: `viejo == nuevo == lote` en los tres casos, `0` diferencias. El probe es ad-hoc y **no** se commitea; `/auth/me` ya está pinneado por `tests/test_auth.py` y `tests/test_auth_contract.py`.
+
+**Evidencia observada**:
+
+- RED previo: la suite del archivo nuevo falló completa (exit 1) antes de escribir la implementación.
+- `pytest tests/test_usuarios.py -o addopts=` → **30 passed, 1 warning in 40.28s**.
+- `pytest -o addopts=` completo desde `backend/` con `DATABASE_URL` apuntando a `sigemi_t3` → **350 passed, 1 warning in 61.31s**, exit 0.
+- `ruff check .` → `All checks passed!`; `ruff format --check .` → `46 files already formatted`.
+- Criterio de L12 cumplido: ≥ 320 sobre la base actual, con 30 tests nuevos que lo elevan a 350.
+
+**Nota de operación**: `backend/pytest.ini` fija `addopts = -q`. Un `-q` adicional en la línea de comando compone `-qq` y **borra la línea de resumen**, así que el conteo de passed hay que leerlo de los puntos o con `-o addopts=`. No es un defecto de la suite, pero explica por qué una corrida verde no muestra «N passed».
+
+**Anomalía preexistente, no tocada**: `.atl/skill-registry.md` estaba modificado al abrir el carril. Es la regeneración local del registry, que reescribe las rutas absolutas del árbol principal a `C:\work\sigemi-t3` y elimina la fila de `impeccable` que L11 documenta como excluida a propósito. No se commitea: es estado del carril, no del repositorio.
+
 
 
