@@ -18,6 +18,7 @@ from collections.abc import Iterator
 import jwt
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
+from jwt_probe import tamper_signature
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_roles
@@ -47,7 +48,12 @@ def _token(payload_overrides: dict[str, object]) -> str:
 def test_tampered_token_is_rejected(client, usuario_factory) -> None:
     usuario = usuario_factory(roles=("bioquimico",))
     token = create_access_token(usuario.id, ["bioquimico"])
-    tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+    tampered = tamper_signature(token)
+
+    # The probe is only meaningful while the token stays well-formed and only
+    # its signature changed; otherwise the 401 could come from a broken token.
+    assert tampered.split(".")[:2] == token.split(".")[:2]
+    assert len(tampered.split(".")[2]) == len(token.split(".")[2])
 
     response = client.get("/api/v1/auth/me", headers=_bearer(tampered))
 

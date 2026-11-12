@@ -210,4 +210,16 @@ Eso **contradice** el contrato de idioma previo de `AGENTS.md` («commit message
 
 **Defecto conocido del registry**: `vercel-composition-patterns` figura indexado con descripción vacía («—») porque su `SKILL.md` usa un `description:` en escalar plegado que el generador no parsea. No afecta al uso —la ruta está indexada y se pasa explícita— pero el skill no se va a seleccionar por descripción.
 
+### L12 — Probe de firma alterada, corregido antes de T3 (2026-11-12)
+
+**Defecto**: el probe de L9 seguía vivo en `154bf0f`. Reproducido al verificar la base antes de largar el carril de T3: `pytest` desde `C:\work\sigemi-t3\backend` devolvió **1 failed, 319 passed**, con el fallo en `tests/test_auth_security.py::test_tampered_token_is_rejected`. Es el mismo defecto ya descrito: el último carácter base64url solo aporta 4 bits significativos, así que reemplazarlo deja la firma idéntica en aproximadamente 1 de cada 16 tokens.
+
+**Segunda ocurrencia**: el mismo patrón estaba en `tests/test_security.py::TestDecodeErrors::test_tampered_signature_raises`. Nunca se lo observó fallar por baja frecuencia de corrida, pero el defecto es idéntico. Corregir solo uno habría dejado el otro latente.
+
+**Corrección**: módulo nuevo `backend/tests/jwt_probe.py` con `tamper_signature(token)`, que decodifica el segmento de firma, invierte el bit bajo del primer byte y lo re-codifica en base64url sin padding. Es determinista: los bytes que PyJWT verifica cambian siempre. Los dos probes lo usan y afirman además que el encabezado y el payload quedaron intactos y que la longitud de la firma se conservó, para que un 401 no pueda venir de un token mal formado en vez de una firma alterada.
+
+**Evidencia observada**: 500 tokens generados, `tamper_signature` aplicado a cada uno → **0 firmas idénticas**, encabezado y payload preservados en los 500. Los dos probes dirigidos: `2 passed`. Suite completa desde `backend/`: **320 passed, 1 warning, 20.29 s**. `ruff check .` exit 0 y `ruff format --check .` → 42 archivos ya formateados.
+
+**Consecuencia sobre T3**: el criterio «≥ 320 en verde sobre la base actual» vuelve a ser observable. La base de los dos carriles pasa a este commit.
+
 

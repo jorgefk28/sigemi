@@ -7,6 +7,7 @@ import uuid
 
 import jwt
 import pytest
+from jwt_probe import tamper_signature
 
 from app.core.config import settings
 from app.core.security import (
@@ -133,8 +134,10 @@ class TestRoundTrip:
 class TestDecodeErrors:
     def test_tampered_signature_raises(self):
         token = create_access_token(subject=uuid.uuid4(), roles=["bioquimico"])
-        # Flip the last character to corrupt the signature.
-        tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+        # Flip a bit in the decoded signature; replacing the last base64url
+        # character is not deterministic (it carries only 4 significant bits).
+        tampered = tamper_signature(token)
+        assert tampered.split(".")[:2] == token.split(".")[:2]
         with pytest.raises(InvalidTokenError):
             decode_access_token(tampered)
 
