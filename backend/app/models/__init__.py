@@ -7,7 +7,17 @@ foreign keys by table name, so the order is not a correctness requirement.
 
 from __future__ import annotations
 
-from app.models import access, agenda, audit, catalogs, clinical, equipment, inventory, reports, waste
+from app.models import (
+    access,
+    agenda,
+    audit,
+    catalogs,
+    clinical,
+    equipment,
+    inventory,
+    reports,
+    waste,
+)
 
 __all__ = [
     "access",

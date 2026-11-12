@@ -33,7 +33,9 @@ class Auditoria(UUIDPrimaryKeyMixin, Base):
 
     __table_args__ = (
         Index("ix_auditoria_fecha_hora", "fecha_hora"),
-        Index("ix_auditoria_entidad_afectada_entidad_id", "entidad_afectada", "entidad_id"),
+        Index(
+            "ix_auditoria_entidad_afectada_entidad_id", "entidad_afectada", "entidad_id"
+        ),
         Index("ix_auditoria_usuario_id", "usuario_id"),
     )
 
@@ -48,6 +50,4 @@ class CambioAuditoria(UUIDPrimaryKeyMixin, Base):
     valor_anterior: Mapped[str | None] = mapped_column(Text(), nullable=True)
     valor_nuevo: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
-    __table_args__ = (
-        Index("ix_cambio_auditoria_auditoria_id", "auditoria_id"),
-    )
+    __table_args__ = (Index("ix_cambio_auditoria_auditoria_id", "auditoria_id"),)

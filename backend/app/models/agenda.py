@@ -12,7 +12,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, time
 
-from sqlalchemy import ARRAY, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -47,16 +47,16 @@ class EspacioAtencion(UUIDPrimaryKeyMixin, Base):
         ForeignKey("grupo_espacio.id"), nullable=True
     )
     descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=EstadoActivo.ACTIVO.value
+    )
 
 
 class TipoBloqueo(UUIDPrimaryKeyMixin, Base):
     """Catalog of reasons for blocking agenda slots."""
 
     __tablename__ = "tipo_bloqueo"
-    __table_args__ = (
-        UniqueConstraint("nombre", name="uq_tipo_bloqueo_nombre"),
-    )
+    __table_args__ = (UniqueConstraint("nombre", name="uq_tipo_bloqueo_nombre"),)
 
     nombre: Mapped[str] = mapped_column(nullable=False)
     descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
@@ -121,9 +121,7 @@ class ConfiguracionAgenda(UUIDPrimaryKeyMixin, Base):
 
     __tablename__ = "configuracion_agenda"
 
-    dias_habiles: Mapped[list[str]] = mapped_column(
-        PG_ARRAY(String()), nullable=False
-    )
+    dias_habiles: Mapped[list[str]] = mapped_column(PG_ARRAY(String()), nullable=False)
     horario_inicio_manana: Mapped[time] = mapped_column(nullable=False)
     horario_fin_manana: Mapped[time] = mapped_column(nullable=False)
     horario_inicio_tarde: Mapped[time | None] = mapped_column(nullable=True)
@@ -158,7 +156,9 @@ class PeriodoInhabilitado(UUIDPrimaryKeyMixin, Base):
     recurrencia: Mapped[str] = mapped_column(
         nullable=False, default=Recurrencia.NINGUNA.value
     )
-    estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=EstadoActivo.ACTIVO.value
+    )
 
 
 class BloqueoAgenda(UUIDPrimaryKeyMixin, Base):
@@ -187,7 +187,9 @@ class BloqueoAgenda(UUIDPrimaryKeyMixin, Base):
     hora_inicio: Mapped[time | None] = mapped_column(nullable=True)
     hora_fin: Mapped[time | None] = mapped_column(nullable=True)
     motivo: Mapped[str] = mapped_column(nullable=False)
-    estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=EstadoActivo.ACTIVO.value
+    )
 
 
 class DisponibilidadProfesional(UUIDPrimaryKeyMixin, Base):
@@ -207,7 +209,9 @@ class DisponibilidadProfesional(UUIDPrimaryKeyMixin, Base):
     horario_inicio_tarde: Mapped[time | None] = mapped_column(nullable=True)
     horario_fin_tarde: Mapped[time | None] = mapped_column(nullable=True)
     max_turnos_por_franja: Mapped[int] = mapped_column(nullable=False)
-    estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=EstadoActivo.ACTIVO.value
+    )
 
 
 class AusenciaProfesional(UUIDPrimaryKeyMixin, Base):
@@ -230,7 +234,9 @@ class AusenciaProfesional(UUIDPrimaryKeyMixin, Base):
     hora_fin: Mapped[time | None] = mapped_column(nullable=True)
     motivo: Mapped[str] = mapped_column(nullable=False)
     reprogramacion_aplicada: Mapped[bool] = mapped_column(nullable=False, default=False)
-    estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=EstadoActivo.ACTIVO.value
+    )
 
 
 class OfertaReagendacion(UUIDPrimaryKeyMixin, Base):
@@ -242,9 +248,7 @@ class OfertaReagendacion(UUIDPrimaryKeyMixin, Base):
         Index("ix_oferta_reagendacion_estado", "estado"),
     )
 
-    turno_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("turno.id"), nullable=False
-    )
+    turno_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("turno.id"), nullable=False)
     paciente_ofertado_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("paciente.id"), nullable=False
     )

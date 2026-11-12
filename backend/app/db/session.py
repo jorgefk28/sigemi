@@ -30,7 +30,7 @@ SessionLocal = sessionmaker(
 )
 
 
-def get_db() -> Generator[Session, None, None]:
+def get_db() -> Generator[Session]:
     """FastAPI dependency that yields a request-scoped session."""
 
     db = SessionLocal()

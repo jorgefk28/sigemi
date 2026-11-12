@@ -47,9 +47,7 @@ class Paciente(UUIDPrimaryKeyMixin, Base):
     estado: Mapped[str] = mapped_column(
         nullable=False, default=EstadoActivo.ACTIVO.value
     )
-    fecha_ingreso: Mapped[datetime] = mapped_column(
-        nullable=False, default=utcnow
-    )
+    fecha_ingreso: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
 
     __table_args__ = (
         UniqueConstraint("numero_registro", name="uq_paciente_numero_registro"),
@@ -69,17 +67,13 @@ class FichaClinica(UUIDPrimaryKeyMixin, Base):
     profesional_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("profesional.id"), nullable=False
     )
-    fecha_consulta: Mapped[datetime] = mapped_column(
-        nullable=False, default=utcnow
-    )
+    fecha_consulta: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
     version_actual: Mapped[int] = mapped_column(nullable=False, default=1)
     estado: Mapped[str] = mapped_column(
         nullable=False, default=EstadoActivo.ACTIVO.value
     )
 
-    __table_args__ = (
-        Index("ix_ficha_clinica_paciente_id", "paciente_id"),
-    )
+    __table_args__ = (Index("ix_ficha_clinica_paciente_id", "paciente_id"),)
 
 
 class DatoClinico(UUIDPrimaryKeyMixin, Base):
@@ -94,9 +88,7 @@ class DatoClinico(UUIDPrimaryKeyMixin, Base):
     valor: Mapped[str] = mapped_column(Text(), nullable=False)
     tipo_dato: Mapped[str] = mapped_column(nullable=False, default="texto")
 
-    __table_args__ = (
-        Index("ix_dato_clinico_ficha_clinica_id", "ficha_clinica_id"),
-    )
+    __table_args__ = (Index("ix_dato_clinico_ficha_clinica_id", "ficha_clinica_id"),)
 
 
 class VersionFichaClinica(UUIDPrimaryKeyMixin, Base):
@@ -113,9 +105,7 @@ class VersionFichaClinica(UUIDPrimaryKeyMixin, Base):
     usuario_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("usuario.id"), nullable=False
     )
-    fecha_modificacion: Mapped[datetime] = mapped_column(
-        nullable=False, default=utcnow
-    )
+    fecha_modificacion: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
     motivo: Mapped[str] = mapped_column(nullable=False)
 
     __table_args__ = (
@@ -145,9 +135,7 @@ class Muestra(UUIDPrimaryKeyMixin, Base):
     usuario_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("usuario.id"), nullable=False
     )
-    fecha_ingreso: Mapped[datetime] = mapped_column(
-        nullable=False, default=utcnow
-    )
+    fecha_ingreso: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
     observaciones: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     __table_args__ = (
@@ -180,9 +168,7 @@ class AnalisisMicologico(UUIDPrimaryKeyMixin, Base):
     estado: Mapped[str] = mapped_column(
         nullable=False, default=AnalisisEstado.PENDIENTE.value
     )
-    fecha_creacion: Mapped[datetime] = mapped_column(
-        nullable=False, default=utcnow
-    )
+    fecha_creacion: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
     fecha_validacion: Mapped[datetime | None] = mapped_column(nullable=True)
     motivo_invalidacion: Mapped[str | None] = mapped_column(nullable=True)
 
@@ -220,9 +206,7 @@ class VersionAnalisis(UUIDPrimaryKeyMixin, Base):
     usuario_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("usuario.id"), nullable=False
     )
-    fecha_modificacion: Mapped[datetime] = mapped_column(
-        nullable=False, default=utcnow
-    )
+    fecha_modificacion: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
     motivo: Mapped[str] = mapped_column(nullable=False)
 
     __table_args__ = (
@@ -244,9 +228,7 @@ class InformeResultados(UUIDPrimaryKeyMixin, Base):
         ForeignKey("analisis_micologico.id"), nullable=False
     )
     ruta_archivo: Mapped[str] = mapped_column(nullable=False)
-    fecha_generacion: Mapped[datetime] = mapped_column(
-        nullable=False, default=utcnow
-    )
+    fecha_generacion: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
     hash_archivo: Mapped[str] = mapped_column(nullable=False)
 
 
@@ -259,16 +241,12 @@ class Otp(UUIDPrimaryKeyMixin, Base):
         ForeignKey("analisis_micologico.id"), nullable=False
     )
     codigo: Mapped[str] = mapped_column(nullable=False)
-    fecha_generacion: Mapped[datetime] = mapped_column(
-        nullable=False, default=utcnow
-    )
+    fecha_generacion: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
     fecha_expiracion: Mapped[datetime] = mapped_column(nullable=False)
     usado: Mapped[bool] = mapped_column(nullable=False, default=False)
     fecha_uso: Mapped[datetime | None] = mapped_column(nullable=True)
 
-    __table_args__ = (
-        Index("ix_otp_analisis_id", "analisis_id"),
-    )
+    __table_args__ = (Index("ix_otp_analisis_id", "analisis_id"),)
 
 
 __all__ = [

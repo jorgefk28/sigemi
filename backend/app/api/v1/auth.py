@@ -89,9 +89,7 @@ def login(
 
     usuario.intentos_fallidos = 0
     usuario.bloqueado_hasta = None
-    access_token = create_access_token(
-        usuario.id, roles_de_usuario(db, usuario.id)
-    )
+    access_token = create_access_token(usuario.id, roles_de_usuario(db, usuario.id))
     registrar_auditoria(
         db,
         usuario_id=usuario.id,

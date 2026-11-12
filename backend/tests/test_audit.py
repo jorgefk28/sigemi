@@ -4,18 +4,17 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
 from sqlalchemy.orm import Session
 
-from app.models.audit import Auditoria, CambioAuditoria
+from app.models.audit import CambioAuditoria
 from app.models.enums import AccionAuditoria
 from app.services import audit as audit_module
 from app.services.audit import registrar_auditoria
 
-
 # ---------------------------------------------------------------------------
 # 1. registrar_auditoria without cambios creates one Auditoria row
 # ---------------------------------------------------------------------------
+
 
 def test_registrar_auditoria_sin_cambios(db: Session, usuario_factory):
     """One Auditoria is created; fecha_hora is non-null; no CambioAuditoria."""
@@ -47,6 +46,7 @@ def test_registrar_auditoria_sin_cambios(db: Session, usuario_factory):
 # ---------------------------------------------------------------------------
 # 2. With two cambios, two CambioAuditoria rows are created and linked
 # ---------------------------------------------------------------------------
+
 
 def test_registrar_auditoria_con_cambios(db: Session, usuario_factory):
     """Two CambioAuditoria rows are created, linked to the Auditoria."""
@@ -89,6 +89,7 @@ def test_registrar_auditoria_con_cambios(db: Session, usuario_factory):
 # 3. Passing AccionAuditoria.CREAR stores the string "crear"
 # ---------------------------------------------------------------------------
 
+
 def test_accion_enum_almacena_valor_string(db: Session, usuario_factory):
     """When an AccionAuditoria enum member is passed, its .value is stored."""
     usuario = usuario_factory(roles=("administrador",))
@@ -108,6 +109,7 @@ def test_accion_enum_almacena_valor_string(db: Session, usuario_factory):
 # ---------------------------------------------------------------------------
 # 4. Append-only guard — no update or delete attribute exposed
 # ---------------------------------------------------------------------------
+
 
 def test_no_update_or_delete_en_modulo():
     """app.services.audit must expose no attribute whose name starts with

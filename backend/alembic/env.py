@@ -8,14 +8,13 @@ from __future__ import annotations
 
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
-
-from app.core.config import settings
-from app.db.base import Base
 
 # Importing the models package registers every table on ``Base.metadata``.
 import app.models  # noqa: F401  (side-effect import)
+from alembic import context
+from app.core.config import settings
+from app.db.base import Base
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

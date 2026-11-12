@@ -18,10 +18,10 @@ from app.core.security import (
     verify_password,
 )
 
-
 # ---------------------------------------------------------------------------
 # 1. hash_password produces a bcrypt hash, not plaintext; salts differ
 # ---------------------------------------------------------------------------
+
 
 class TestHashPassword:
     def test_returns_bcrypt_prefix(self):
@@ -43,6 +43,7 @@ class TestHashPassword:
 # 2. verify_password: correct → True, wrong → False
 # ---------------------------------------------------------------------------
 
+
 class TestVerifyPassword:
     def test_correct_password_returns_true(self):
         h = hash_password("correct")
@@ -56,6 +57,7 @@ class TestVerifyPassword:
 # ---------------------------------------------------------------------------
 # 3. Passwords longer than 72 bytes still verify correctly
 # ---------------------------------------------------------------------------
+
 
 class TestLongPassword:
     def test_password_over_72_bytes_verifies(self):
@@ -78,6 +80,7 @@ class TestLongPassword:
 # 4. verify_password returns False (not raises) for a malformed hash
 # ---------------------------------------------------------------------------
 
+
 class TestMalformedHash:
     def test_malformed_hash_returns_false(self):
         result = verify_password("any-password", "this-is-not-a-bcrypt-hash")
@@ -91,6 +94,7 @@ class TestMalformedHash:
 # ---------------------------------------------------------------------------
 # 5. create_access_token + decode_access_token round-trip
 # ---------------------------------------------------------------------------
+
 
 class TestRoundTrip:
     def test_sub_and_roles_survive_round_trip(self):
@@ -125,6 +129,7 @@ class TestRoundTrip:
 # 6. decode_access_token raises InvalidTokenError for tampered / garbage input
 # ---------------------------------------------------------------------------
 
+
 class TestDecodeErrors:
     def test_tampered_signature_raises(self):
         token = create_access_token(subject=uuid.uuid4(), roles=["bioquimico"])
@@ -148,7 +153,9 @@ class TestDecodeErrors:
             "iat": int(time.time()),
             "exp": int(time.time()) + 3600,
         }
-        bad_token = jwt.encode(payload, "wrong-secret-key", algorithm=settings.algorithm)
+        bad_token = jwt.encode(
+            payload, "wrong-secret-key", algorithm=settings.algorithm
+        )
         with pytest.raises(InvalidTokenError):
             decode_access_token(bad_token)
 
@@ -156,6 +163,7 @@ class TestDecodeErrors:
 # ---------------------------------------------------------------------------
 # 7. Expired token raises InvalidTokenError
 # ---------------------------------------------------------------------------
+
 
 class TestExpiredToken:
     def test_expired_token_raises(self):
@@ -177,6 +185,7 @@ class TestExpiredToken:
 # ---------------------------------------------------------------------------
 # token_expires_in_seconds
 # ---------------------------------------------------------------------------
+
 
 class TestTokenExpiresInSeconds:
     def test_returns_minutes_times_sixty(self):

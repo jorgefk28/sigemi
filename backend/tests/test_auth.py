@@ -26,6 +26,7 @@ def _login(client, correo: str, contrasena: str):
 # 1. Successful login: 200, bearer token, sub and roles decode correctly
 # ---------------------------------------------------------------------------
 
+
 def test_login_success_returns_token(client, usuario_factory):
     usuario = usuario_factory(roles=("bioquimico",))
 
@@ -45,7 +46,10 @@ def test_login_success_returns_token(client, usuario_factory):
 # 2. Wrong password: 401 and intentos_fallidos increments to 1
 # ---------------------------------------------------------------------------
 
-def test_login_wrong_password_increments_failed_attempts(client, db: Session, usuario_factory):
+
+def test_login_wrong_password_increments_failed_attempts(
+    client, db: Session, usuario_factory
+):
     usuario = usuario_factory(roles=("bioquimico",))
 
     response = _login(client, usuario.correo_electronico, "WrongPass123")
@@ -60,6 +64,7 @@ def test_login_wrong_password_increments_failed_attempts(client, db: Session, us
 # 3. Lock-out: after max attempts bloqueado_hasta is set and a correct
 #    password is then rejected with 423
 # ---------------------------------------------------------------------------
+
 
 def test_login_locks_account_after_max_attempts(client, db: Session, usuario_factory):
     usuario = usuario_factory(roles=("bioquimico",))
@@ -80,6 +85,7 @@ def test_login_locks_account_after_max_attempts(client, db: Session, usuario_fac
 # 4. Unknown email: 401 (without revealing whether the email exists)
 # ---------------------------------------------------------------------------
 
+
 def test_login_unknown_email_returns_401(client, usuario_factory):
     usuario_factory(roles=("bioquimico",))
 
@@ -92,6 +98,7 @@ def test_login_unknown_email_returns_401(client, usuario_factory):
 # ---------------------------------------------------------------------------
 # 5. Inactive user: 403
 # ---------------------------------------------------------------------------
+
 
 def test_login_inactive_user_returns_403(client, usuario_factory):
     usuario = usuario_factory(roles=("bioquimico",), estado="inactivo")
@@ -106,7 +113,10 @@ def test_login_inactive_user_returns_403(client, usuario_factory):
 # 6. Successful login resets failed attempts and clears an expired lock
 # ---------------------------------------------------------------------------
 
-def test_login_success_resets_failed_attempts_and_lock(client, db: Session, usuario_factory):
+
+def test_login_success_resets_failed_attempts_and_lock(
+    client, db: Session, usuario_factory
+):
     usuario = usuario_factory(roles=("bioquimico",))
     usuario.intentos_fallidos = 3
     usuario.bloqueado_hasta = utcnow() - timedelta(minutes=1)
@@ -123,6 +133,7 @@ def test_login_success_resets_failed_attempts_and_lock(client, db: Session, usua
 # ---------------------------------------------------------------------------
 # 7. /me with a valid token returns the user (roles == ["bioquimico"])
 # ---------------------------------------------------------------------------
+
 
 def test_me_returns_current_user(client, usuario_factory):
     usuario = usuario_factory(roles=("bioquimico",))
@@ -146,6 +157,7 @@ def test_me_returns_current_user(client, usuario_factory):
 # 8. /me without a token: 401
 # ---------------------------------------------------------------------------
 
+
 def test_me_unauthorized_without_token(client):
     response = client.get(ME_URL)
 
@@ -156,17 +168,14 @@ def test_me_unauthorized_without_token(client):
 # 9. Successful login writes exactly one Auditoria row (accion == "acceder")
 # ---------------------------------------------------------------------------
 
+
 def test_login_writes_single_audit_row(client, db: Session, usuario_factory):
     usuario = usuario_factory(roles=("bioquimico",))
 
     response = _login(client, usuario.correo_electronico, "Secreta123")
 
     assert response.status_code == 200
-    auditorias = (
-        db.query(Auditoria)
-        .filter_by(entidad_id=usuario.id)
-        .all()
-    )
+    auditorias = db.query(Auditoria).filter_by(entidad_id=usuario.id).all()
     assert len(auditorias) == 1
     assert auditorias[0].accion == "acceder"
     assert auditorias[0].usuario_id == usuario.id

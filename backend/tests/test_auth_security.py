@@ -16,7 +16,6 @@ import uuid
 from collections.abc import Iterator
 
 import jwt
-import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -61,7 +60,12 @@ def test_token_signed_with_another_secret_is_rejected(client, usuario_factory) -
     usuario = usuario_factory(roles=("bioquimico",))
     now = int(utcnow().timestamp())
     forged = jwt.encode(
-        {"sub": str(usuario.id), "roles": ["bioquimico"], "iat": now, "exp": now + 3600},
+        {
+            "sub": str(usuario.id),
+            "roles": ["bioquimico"],
+            "iat": now,
+            "exp": now + 3600,
+        },
         "not-the-application-secret",
         algorithm=settings.algorithm,
     )
@@ -82,7 +86,9 @@ def test_expired_token_is_rejected(client, usuario_factory) -> None:
 
 
 def test_token_with_non_uuid_subject_is_rejected(client) -> None:
-    response = client.get("/api/v1/auth/me", headers=_bearer(_token({"sub": "not-a-uuid"})))
+    response = client.get(
+        "/api/v1/auth/me", headers=_bearer(_token({"sub": "not-a-uuid"}))
+    )
 
     assert response.status_code == 401
 
@@ -137,7 +143,10 @@ def test_require_roles_enforces_and_fails_closed(db: Session, usuario_factory) -
 
 def test_audit_on_lockout_only(client, db: Session, usuario_factory) -> None:
     usuario = usuario_factory(roles=("bioquimico",))
-    credenciales = {"username": usuario.correo_electronico, "password": "ClaveIncorrecta"}
+    credenciales = {
+        "username": usuario.correo_electronico,
+        "password": "ClaveIncorrecta",
+    }
 
     client.post("/api/v1/auth/login", data=credenciales)
     assert db.query(Auditoria).filter_by(usuario_id=usuario.id).count() == 0
@@ -166,7 +175,9 @@ def test_no_credential_material_in_responses(client, usuario_factory) -> None:
     assert login.status_code == 200
     assert {"contrasena", "contrasena_hash", "password"}.isdisjoint(login.json())
 
-    perfil = client.get("/api/v1/auth/me", headers=_bearer(login.json()["access_token"]))
+    perfil = client.get(
+        "/api/v1/auth/me", headers=_bearer(login.json()["access_token"])
+    )
 
     assert perfil.status_code == 200
     assert {

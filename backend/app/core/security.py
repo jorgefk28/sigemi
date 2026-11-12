@@ -7,7 +7,7 @@ No secrets or token values are ever printed or logged.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import bcrypt
 import jwt
@@ -23,6 +23,7 @@ class InvalidTokenError(Exception):
 # ---------------------------------------------------------------------------
 # Password hashing
 # ---------------------------------------------------------------------------
+
 
 def hash_password(password: str) -> str:
     """Return a bcrypt hash of *password* at cost factor 12.
@@ -57,6 +58,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 # JWT
 # ---------------------------------------------------------------------------
 
+
 def create_access_token(subject: uuid.UUID | str, roles: list[str]) -> str:
     """Build and sign a JWT access token for *subject* with the given *roles*.
 
@@ -66,7 +68,7 @@ def create_access_token(subject: uuid.UUID | str, roles: list[str]) -> str:
         iat  — issued-at as a UTC epoch integer (seconds).
         exp  — expiry as a UTC epoch integer (seconds).
     """
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     expire_seconds = settings.access_token_expire_minutes * 60
     exp = int(now.timestamp()) + expire_seconds
 

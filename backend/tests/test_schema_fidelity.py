@@ -268,7 +268,13 @@ LEVEL3_COLUMNS: dict[str, set[str]] = {
         "practica_educativa",
         "fecha",
     },
-    "categoria_residuo": {"id", "nombre", "clase_peligrosidad", "descripcion", "estado"},
+    "categoria_residuo": {
+        "id",
+        "nombre",
+        "clase_peligrosidad",
+        "descripcion",
+        "estado",
+    },
     "instruccion_almacenamiento": {
         "id",
         "categoria_residuo_id",
@@ -460,7 +466,10 @@ LEVEL3_FOREIGN_KEYS: dict[tuple[str, str], tuple[str, bool]] = {
     ("oferta_reagendacion", "ausencia_id"): ("ausencia_profesional", True),
     ("insumo", "categoria_id"): ("categoria_insumo", False),
     ("movimiento_inventario", "analisis_id"): ("analisis_micologico", True),
-    ("movimiento_inventario", "devolucion_referencia_id"): ("movimiento_inventario", True),
+    ("movimiento_inventario", "devolucion_referencia_id"): (
+        "movimiento_inventario",
+        True,
+    ),
     ("residuo_quimico", "analisis_id"): ("analisis_micologico", True),
     ("residuo_quimico", "disposicion_final_id"): ("disposicion_final", True),
     ("cambio_auditoria", "auditoria_id"): ("auditoria", False),
@@ -524,7 +533,9 @@ def test_conventions_uuid_pk_tz_aware_no_native_enum(table_name: str) -> None:
     assert getattr(primary_key[0].default.arg, "__name__", "") == "uuid4"
     for column in table.columns:
         if isinstance(column.type, DateTime):
-            assert column.type.timezone, f"{table_name}.{column.name} must be timezone-aware"
+            assert column.type.timezone, (
+                f"{table_name}.{column.name} must be timezone-aware"
+            )
         assert not isinstance(column.type, Enum), (
             f"{table_name}.{column.name} must not use a native ENUM"
         )

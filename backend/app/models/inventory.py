@@ -21,11 +21,11 @@ class CategoriaInsumo(UUIDPrimaryKeyMixin, Base):
 
     nombre: Mapped[str] = mapped_column(nullable=False)
     descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
-
-    __table_args__ = (
-        UniqueConstraint("nombre", name="uq_categoria_insumo_nombre"),
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=EstadoActivo.ACTIVO.value
     )
+
+    __table_args__ = (UniqueConstraint("nombre", name="uq_categoria_insumo_nombre"),)
 
 
 class UbicacionAlmacenamiento(UUIDPrimaryKeyMixin, Base):
@@ -33,7 +33,9 @@ class UbicacionAlmacenamiento(UUIDPrimaryKeyMixin, Base):
 
     nombre: Mapped[str] = mapped_column(nullable=False)
     descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=EstadoActivo.ACTIVO.value
+    )
 
 
 class Insumo(UUIDPrimaryKeyMixin, Base):
@@ -50,7 +52,9 @@ class Insumo(UUIDPrimaryKeyMixin, Base):
     )
     umbral_minimo: Mapped[Decimal] = mapped_column(nullable=False)
     dias_alerta_vencimiento: Mapped[int] = mapped_column(nullable=False, default=30)
-    estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=EstadoActivo.ACTIVO.value
+    )
     fecha_creacion: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
 
     # stock_actual is intentionally NOT a column.
@@ -85,9 +89,7 @@ class Lote(UUIDPrimaryKeyMixin, Base):
 class MovimientoInventario(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "movimiento_inventario"
 
-    lote_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("lote.id"), nullable=False
-    )
+    lote_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("lote.id"), nullable=False)
     usuario_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("usuario.id"), nullable=False
     )

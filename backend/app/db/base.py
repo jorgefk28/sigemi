@@ -18,8 +18,8 @@ import uuid
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
 
-from sqlalchemy import DateTime, MetaData
 from sqlalchemy import Date as SADate
+from sqlalchemy import DateTime, MetaData
 from sqlalchemy import Time as SATime
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column

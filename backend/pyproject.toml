@@ -1,0 +1,26 @@
+# Ruff configuration for the backend.
+#
+# Committed on purpose: without this file `ruff check` picks up whatever
+# configuration is ambient on the machine, so the same command passes for one
+# lane and fails for another.
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+# Applied migrations are frozen by AGENTS.md ("never edit an applied revision").
+# Reformatting one, even cosmetically, edits history.
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+# Core set only: real defects plus deterministic import order. Style opinions
+# that are not defects stay out, so the gate remains predictable under pressure
+# and nobody has to negotiate it in the middle of a work unit.
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+
+# FastAPI dependency injection is a function call in a default argument by
+# design; it is not the mutable-default defect this rule targets.
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]

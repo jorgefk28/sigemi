@@ -23,11 +23,11 @@ class CategoriaResiduo(UUIDPrimaryKeyMixin, Base):
     nombre: Mapped[str] = mapped_column(nullable=False)
     clase_peligrosidad: Mapped[str] = mapped_column(nullable=False)
     descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
-
-    __table_args__ = (
-        UniqueConstraint("nombre", name="uq_categoria_residuo_nombre"),
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=EstadoActivo.ACTIVO.value
     )
+
+    __table_args__ = (UniqueConstraint("nombre", name="uq_categoria_residuo_nombre"),)
 
 
 class InstruccionAlmacenamiento(UUIDPrimaryKeyMixin, Base):
@@ -46,7 +46,9 @@ class InstruccionAlmacenamiento(UUIDPrimaryKeyMixin, Base):
             "paso",
             name="uq_instruccion_almacenamiento_categoria_residuo_id_paso",
         ),
-        Index("ix_instruccion_almacenamiento_categoria_residuo_id", "categoria_residuo_id"),
+        Index(
+            "ix_instruccion_almacenamiento_categoria_residuo_id", "categoria_residuo_id"
+        ),
     )
 
 

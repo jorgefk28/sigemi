@@ -22,9 +22,7 @@ class TipoEquipo(UUIDPrimaryKeyMixin, Base):
     descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
     criticidad: Mapped[str] = mapped_column(nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("nombre", name="uq_tipo_equipo_nombre"),
-    )
+    __table_args__ = (UniqueConstraint("nombre", name="uq_tipo_equipo_nombre"),)
 
 
 class Equipo(UUIDPrimaryKeyMixin, Base):
@@ -45,7 +43,9 @@ class Equipo(UUIDPrimaryKeyMixin, Base):
     ubicacion_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("ubicacion_almacenamiento.id"), nullable=False
     )
-    estado: Mapped[str] = mapped_column(nullable=False, default=EquipoEstado.OPERATIVO.value)
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=EquipoEstado.OPERATIVO.value
+    )
     requisitos_uso: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     __table_args__ = (

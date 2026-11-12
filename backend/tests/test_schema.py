@@ -12,10 +12,10 @@ import uuid
 import pytest
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex, CreateTable
+from test_schema_fidelity import LEVEL3_COLUMNS
 
 import app.models  # noqa: F401  (registers every table)
 from app.db.base import Base
-from test_schema_fidelity import LEVEL3_COLUMNS
 
 EXPECTED_TABLES = set(LEVEL3_COLUMNS)
 

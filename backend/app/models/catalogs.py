@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDPrimaryKeyMixin
@@ -20,26 +20,26 @@ class TipoAnalisis(UUIDPrimaryKeyMixin, Base):
     """Catalog of analysis types available in the laboratory."""
 
     __tablename__ = "tipo_analisis"
-    __table_args__ = (
-        UniqueConstraint("nombre", name="uq_tipo_analisis_nombre"),
-    )
+    __table_args__ = (UniqueConstraint("nombre", name="uq_tipo_analisis_nombre"),)
 
     nombre: Mapped[str] = mapped_column(nullable=False)
     descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=EstadoActivo.ACTIVO.value
+    )
 
 
 class TipoMuestra(UUIDPrimaryKeyMixin, Base):
     """Catalog of sample types accepted by the laboratory."""
 
     __tablename__ = "tipo_muestra"
-    __table_args__ = (
-        UniqueConstraint("nombre", name="uq_tipo_muestra_nombre"),
-    )
+    __table_args__ = (UniqueConstraint("nombre", name="uq_tipo_muestra_nombre"),)
 
     nombre: Mapped[str] = mapped_column(nullable=False)
     descripcion: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    estado: Mapped[str] = mapped_column(nullable=False, default=EstadoActivo.ACTIVO.value)
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=EstadoActivo.ACTIVO.value
+    )
 
 
 class TipoAnalisisTipoMuestra(UUIDPrimaryKeyMixin, Base):
