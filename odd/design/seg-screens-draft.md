@@ -1,12 +1,16 @@
 # Pantallas de Acceso y Seguridad — borrador para revisión humana
 
+> **Superseded por `## Screens` de `odd/tasks/02-seguridad-acceso.md`.** Este archivo
+> queda como registro del paso 1-3 del plan; la especificación vigente es la sección
+> `## Screens` del documento de la feature (L20). No se implementa desde este archivo.
+
 Derivado de los UCE del subsistema (nivel 1, §2.8.4), de los roles cerrados (nivel 2
 §6.2) y de las tablas `usuario` / `rol` / `usuario_rol` / `profesional` / `auditoria` /
 `cambio_auditoria` (nivel 3). No existe especificación previa de estas pantallas: cada
 decisión de abajo cita su origen.
 
-**Estado**: borrador. Ninguna pantalla está aprobada; T5 no arranca hasta la aprobación
-(paso 4 de `odd/design/screen-design-plan.md`).
+**Estado**: el borrador original fue desestimado (L19). La versión corregida vive en
+`## Screens`; este archivo no es la especificación.
 
 **Cómo se revisa**: tres campos por pantalla y nada más.
 
