@@ -172,4 +172,26 @@ La firma HS256 son 32 bytes → 43 caracteres base64url. El último carácter so
 
 No es un defecto de seguridad: es un defecto del probe. Consecuencia operativa: la suite falla ~6 % de las corridas sin que nada esté roto, y el carril de T3 la va a correr muchas veces. **Acción**: corregir el probe alterando un byte de la firma de forma determinista, en un commit de test propio antes o junto con T3.
 
+### L10 — Endurecimiento de la base (2026-11-12)
+
+**Pedido del usuario, textual**: «Si, confio. Además quiero que los comentarios de los commits se hagam en español.»
+
+Eso **contradice** el contrato de idioma previo de `AGENTS.md` («commit messages stay English»). Se resolvió a favor del dueño y se dejó escrito, no aplicado en silencio: `AGENTS.md` §Language contract ahora exige descripción en español, con el tipo y el scope del Conventional Commit en inglés por ser tokens estructurales. Los commits anteriores a 2026-11-12 quedan en inglés y **no se reescribe historia**.
+
+**Aprobado en el mismo pedido**: normalización de finales de línea, linters como gate, y fijar las dos formas que T3 está por inventar.
+
+**1. `.gitattributes`** (commit `8f62f3e`): `* text=auto eol=lf`, scripts de Windows en CRLF, binarios marcados. El índice y el working tree ya estaban en LF, así que `git add --renormalize .` fue **no-op**: el atributo previene la deriva futura sin tocar un solo blob. Antes de esto, cada `git add` avisaba «LF will be replaced by CRLF», y con dos carriles eso es diff de archivo completo y conflicto por bytes que nadie editó.
+
+**2. Ruff como gate del backend** (commit `042bde2`): configuración en `backend/pyproject.toml` con `select = [E4, E7, E9, F, I, B, UP]`, `B008` ignorado (FastAPI expresa la inyección de dependencias como llamada en un argumento por diseño) y `alembic/versions` excluido, porque el formateador quería reescribir una migración **ya aplicada** y eso viola el contrato de esquema congelado. 29 hallazgos iniciales → 16 corregidos y 15 archivos reformateados. `ruff==0.17.4` fijado en `requirements-dev.txt`.
+
+**3. ESLint como gate del frontend** (commit `febe264`): flat config con `typescript-eslint`, `js.configs.recommended` y `react-hooks`. Un solo hallazgo en todo el árbol (`_init` sin usar en `test/fixtures.ts`), resuelto en la configuración con `argsIgnorePattern: '^_'`, no tocando el fixture. Script `npm run lint`.
+
+**Contrato de respuesta fijado** en `AGENTS.md` §Response contract: `{"detail": "<mensaje>"}` en todo 4xx/5xx; `{"detail", "campo"}` con `400` para validación por campo (regla R3); el `422` automático de FastAPI no es contrato de usuario; los listados devuelven `{items, total, limit, offset}`, con filtros nombrados como la columna del nivel 3 y `q` para búsqueda libre.
+
+**Supuesto declarado**: `limit` por defecto 20 y tope 100. No viene del nivel 1: es convención de repositorio, decidida dentro de este pedido, y vive en un solo lugar para poder revisarla sin reabrir tareas.
+
+**Evidencia observada**: backend `ruff check` limpio y `ruff format --check` con 41 archivos OK; `pytest` **320 passed** (junit, 31.5 s). Frontend `eslint` limpio, `tsc --noEmit` exit 0, `vitest` **24 passed**, `build` OK.
+
+**Hallazgo operativo**: el primer `pytest` posterior a ruff falló con `psycopg.OperationalError: ... Socket is not connected`. No era el cambio: Docker Desktop se había apagado al dormir la máquina (la fecha cambió a 2026-11-12). Levantado el stack, ambas bases persistieron (`sigemi` y `sigemi_t3`) y la suite volvió a 320. `AGENTS.md` §Long unattended runs ahora lo fija: un error de conexión es infraestructura, no regresión, y no se concluye nada hasta que la base responda.
+
 

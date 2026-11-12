@@ -74,8 +74,12 @@ unrecorded one.
 - Domain vocabulary stays Spanish, matching level 3: tables and columns
   (`usuario`, `correo_electronico`, `contrasena_hash`), API field names, and UI copy
   in Spanish (es-AR).
-- Identifiers, type names, comments, commit messages and file names stay English.
-  This mirrors spec S8 of `odd/tasks/03-shell-frontend.md`.
+- Identifiers, type names, comments and file names stay English. This mirrors spec S8
+  of `odd/tasks/03-shell-frontend.md`.
+- **Commit messages are Spanish**, as the repository owner requested on 2026-11-12.
+  The Conventional Commit type and scope stay English (`feat(backend): ...`) because
+  they are structural tokens; the description is Spanish. Commits made before that
+  date stay English and are never rewritten: history is not edited.
 
 ## Security invariants (already pinned by tests — do not weaken)
 
@@ -100,6 +104,24 @@ unrecorded one.
 - No new runtime dependency, framework swap or async-ORM rewrite without explicit
   approval. The stack is FastAPI + synchronous SQLAlchemy + Alembic + Celery, and
   Vite + React 19 + TypeScript + Tailwind 4.
+
+### Response contract (pinned before the first CRUD)
+
+Fixed here **before** the first implementation, because the first implementation
+becomes the de-facto standard for the other four subsystems and roughly thirty screens.
+
+- Every `4xx`/`5xx` body is `{"detail": "<mensaje en español, user-facing>"}`.
+- Field-scoped validation (an `R3` rule, such as password strength) answers `400` with
+  `{"detail": "<mensaje>", "campo": "<field name>"}` so a form can place the message on
+  the field.
+- The automatic `422` that FastAPI emits for a malformed body is **not** a user-facing
+  contract: it means the client is wrong, and the SPA never renders it verbatim.
+- Every list endpoint answers
+  `{"items": [...], "total": <int>, "limit": <int>, "offset": <int>}`.
+- Filters are query parameters named after the level-3 column
+  (`correo_electronico`, `estado`, `rol`); free-text search uses `q`.
+- `limit` defaults to 20 and is capped at 100. This is a repository convention, not a
+  level-1 requirement; it is recorded as an assumption in the feature log.
 
 ## Scope guard
 
@@ -154,8 +176,12 @@ unrecorded one.
   connection and rolls back at the end of each test
   (`join_transaction_mode="create_savepoint"`); API tests never dirty the development
   database.
-- Frontend: `npx tsc --noEmit`, `npm test` (Vitest + Testing Library) and
-  `npm run build` must stay green.
+- Backend lint gate: `ruff check .` and `ruff format --check .` from `backend/` must
+  pass. They are as mandatory as `pytest`; configuration is committed in
+  `backend/pyproject.toml` so the result does not depend on ambient machine config.
+  `alembic/versions/` is excluded on purpose: applied revisions are never edited.
+- Frontend: `npx tsc --noEmit`, `npm run lint`, `npm test` (Vitest + Testing Library)
+  and `npm run build` must stay green.
 - One test per requested rule; one test proving an existing touched behaviour still
   holds. Tests go through the public interface.
 - Keep scratch state outside the worktree (`mktemp -d`); never leave caches or
@@ -239,6 +265,10 @@ A lane is safe only when all four hold. If one fails, the work is serialized ins
 - When a delegated worker is cancelled, rate-limited or out of quota, the lane records
   the observed failure and stops. It does not retry indefinitely and never claims work
   it did not write.
+- A connection error (`OperationalError`, "Socket is not connected") is infrastructure,
+  not a regression: Docker Desktop stops when the machine sleeps. Start the stack from
+  the primary worktree, confirm it is healthy, then re-run. Never conclude that a change
+  broke the suite before the database answered.
 
 ## Definition of done per work unit
 
