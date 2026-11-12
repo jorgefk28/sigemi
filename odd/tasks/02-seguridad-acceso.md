@@ -748,8 +748,8 @@ construye esas cuatro primitivas en SEG-U02 y SEG-U03.
 | T1 | Primitivas de seguridad (bcrypt, JWT), servicio de auditoría append-only, migración de datos del catálogo de roles, fixtures de test con rollback | S2, S3, S4 | delegated (2 en paralelo) | ✅ |
 | T2 | API de autenticación: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `get_current_user`, `require_roles`, wiring del router | S1, S4, S5 | delegated | ✅ |
 | T3 | CRUD de usuarios y asignación de roles (solo `administrador`), con auditoría de cada alta/baja/modificación | S1, S2, S3, S6 | inline | ✅ |
-| T4 | Inventario y especificación de las pantallas de SEG (pasos 1-3 de `odd/design/screen-design-plan.md`). El paso 4 (aprobación) sigue pendiente: la aprobación anterior quedó sin efecto (L19) | S1, S6 | — | ✅ (spec en `## Screens`) |
-| T5 | Implementación de las pantallas de SEG (patrones P1 y P3). **Bloqueada** por la aprobación de `## Screens` y por T7/T8 | S1, S6 | — | ⏳ |
+| T4 | Inventario y especificación de las pantallas de SEG (pasos 1-4 de `odd/design/screen-design-plan.md`). Aprobada por el dueño el 2026-11-12 (L21) | S1, S6 | — | ✅ |
+| T5 | Implementación de las pantallas de SEG (patrones P1 y P3). SEG-U02 y SEG-U03 pueden arrancar; SEG-U04, U05, U06, U07 y U09 esperan T7/T8 | S1, S6 | — | ⏳ |
 | T6 | Endurecer T3 según el review nativo: traducir la carrera de unicidad de correo y de reemplazo de roles a `400` con `campo`, y pinear `direccion_ip` en las filas de auditoría | S1, S2 | — | ⏳ |
 | T7 | Backend de auditoría (G1): `GET /api/v1/auditoria` y `GET /api/v1/auditoria/{id}`, solo `administrador`, con filtros `usuario_id`, `fecha_desde`, `fecha_hasta` y `accion` | S2 | — | ⏳ |
 | T8 | Backend de contraseñas (G2): `POST /api/v1/auth/password`; `POST /api/v1/auth/recuperacion` y `/confirmar` quedan sujetos a D5 (token) y a la aprobación de la dependencia SMTP | S1, S6 | — | ⏳ |
@@ -1092,5 +1092,17 @@ La aprobación de L18 queda **sin efecto**: el borrador aprobado no es la especi
 **Evidencia observada**: `git log --oneline -3` → `8009703 docs(seguridad): integrar el carril T4 y desestimar la aprobacion del borrador`, `c22dbb0 feat(seguridad): integrar el carril T3 de usuarios y roles`, `f98d171 docs(seguridad): abrir T6 con los hallazgos del review de T3`. `pytest -o addopts=` desde `backend/` en `main` tras el merge de T3 → **354 passed, 1 warning, 68.11 s**; `ruff check .` → `All checks passed!`; `ruff format --check .` → `46 files already formatted`.
 
 **Pendiente de higiene**: `.atl/skill-registry.md` sigue modificado y sin commitear en los dos worktrees de carril (`C:\work\sigemi-t3`, `C:\work\sigemi-t4`). No se commitea desde un carril: la regeneración reescribe rutas absolutas del worktree y produce un conflicto por bytes que nadie editó. El integrador lo regenera una sola vez desde el árbol principal.
+
+### L21 — Aprobación de `## Screens` (2026-11-12)
+
+**Aprobación explícita del dueño, textual**: «si», sobre la pregunta «¿Aprobás `## Screens` tal como quedó, o querés revisar alguna pantalla antes de que T5 arranque?». Se lee como **aprobado tal cual**, sin revisión pantalla por pantalla.
+
+Cierra el paso 4 de `odd/design/screen-design-plan.md` para la especificación de `## Screens` en su estado actual (commit `460a964`). **T4 queda ✅** (pasos 1-4).
+
+**Consecuencia**: la especificación es vinculante. Una pantalla aprobada no se rediseña durante la implementación; si T5 encuentra un problema, se reporta y se decide, no se ajusta sobre la marcha.
+
+**T5 sigue parcialmente bloqueada, pero ya no por la aprobación**: SEG-U02 y SEG-U03 pueden implementarse contra T3; SEG-U04, SEG-U05, SEG-U06, SEG-U07 y SEG-U09 esperan T7 (auditoría) y T8 (contraseñas) más D5 y la aprobación de la dependencia SMTP.
+
+**Pendiente de decisión del dueño**: D4 (bloqueo temporal de S5 contra el estado «Inhabilitado» del nivel 1) queda en pie como desvío deliberado registrado; si el dueño quiere que la constancia viva en `## Specs`, la escribe el integrador. D5 (token de recuperación) sigue sin decidir formalmente, aunque la recomendación es token firmado sin estado, sin migración.
 
 
