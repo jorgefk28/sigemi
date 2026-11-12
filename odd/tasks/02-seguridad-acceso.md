@@ -194,4 +194,20 @@ Eso **contradice** el contrato de idioma previo de `AGENTS.md` («commit message
 
 **Hallazgo operativo**: el primer `pytest` posterior a ruff falló con `psycopg.OperationalError: ... Socket is not connected`. No era el cambio: Docker Desktop se había apagado al dormir la máquina (la fecha cambió a 2026-11-12). Levantado el stack, ambas bases persistieron (`sigemi` y `sigemi_t3`) y la suite volvió a 320. `AGENTS.md` §Long unattended runs ahora lo fija: un error de conexión es infraestructura, no regresión, y no se concluye nada hasta que la base responda.
 
+### L11 — Skills de alcance proyecto: qué se fija y qué no (2026-11-12)
+
+**Pregunta del dueño**: «lo necesita? si es así hazlo.»
+
+**Respuesta**: T5 necesita **tres** de los cuatro; `impeccable` no.
+
+**Por qué los tres**: T5 no construye dos pantallas, construye **el patrón que después se instancia en unas treinta**. `web-design-guidelines` aporta lo que una tabla con filtros y un formulario de alta necesitan sí o sí: etiquetas asociadas, foco, navegación por teclado, semántica de formulario. `vercel-composition-patterns` ataca exactamente el problema de un `DataTable`/`FormField` reusado: composición por compound components en vez de proliferación de props. `vercel-react-best-practices` es el que menos aporta —la mitad de sus reglas son de Next.js y este proyecto es una SPA de Vite— pero está fijado por `skills-lock.json` y sus reglas de React sí aplican.
+
+**Por qué `impeccable` no**: son 2.24 MB de los 2.5 totales, 63 archivos y **5 scripts** (`live-browser.js`, `live-browser-session.js`, `live-browser-dom.js`, `live-browser-ignores.js`, `modern-screenshot.umd.js`): un arnés de captura de browser, no documentación. `AGENTS.md` §Skills obliga a rechazar todo skill que pida red, credenciales o escrituras fuera del repositorio sin aprobación explícita. Además no hace falta para implementar pantallas: es un flujo de captura y auditoría de diseño. Sigue disponible en el árbol principal, fuera del repo.
+
+**Coherencia con lo ya decidido**: el argumento que usamos para fijar `pyproject.toml` y `eslint.config.js` —que el resultado no dependa de configuración ambiente de la máquina— vale igual para los skills. Un skill fuera de `HEAD` es una dependencia ambiente. Los tres que se fijan coinciden **exactamente** con los que `skills-lock.json` ya declaraba, así que queda cumplida la regla de fijar la fuente en el repositorio; `impeccable` era el único instalado por fuera del lock, y ahora se documenta su exclusión en vez de dejarla implícita.
+
+**Consecuencia**: `.gitignore` ya no ignora `.agents/` entero, solo `/.agents/skills/impeccable/`. Cualquier worktree creado desde este commit trae los tres skills y el carril de T5 es autosuficiente.
+
+**Defecto conocido del registry**: `vercel-composition-patterns` figura indexado con descripción vacía («—») porque su `SKILL.md` usa un `description:` en escalar plegado que el generador no parsea. No afecta al uso —la ruta está indexada y se pasa explícita— pero el skill no se va a seleccionar por descripción.
+
 
