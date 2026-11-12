@@ -1,0 +1,20 @@
+# Normalize text to LF in the index and in the working tree, on every platform.
+# Without this, a Windows checkout rewrites these files as CRLF, a review shows a
+# whole file as changed, and two lanes conflict over bytes nobody edited.
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF so cmd.exe and legacy hosts stay safe.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binaries: never normalize, never diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
