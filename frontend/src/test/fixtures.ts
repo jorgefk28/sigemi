@@ -20,6 +20,15 @@ export function jsonResponse(body: unknown, status = 200): Response {
 }
 
 /**
+ * Route factory that builds a fresh `Response` per request. A `Response` body
+ * can be read only once, so a URL hit more than once needs this instead of a
+ * single `jsonResponse` instance.
+ */
+export function jsonRoute(body: unknown, status = 200): () => Promise<Response> {
+  return () => Promise.resolve(jsonResponse(body, status));
+}
+
+/**
  * Stub global `fetch` with a URL router. Values may be a `Response` or a
  * factory returning one (or rejecting). Unexpected URLs reject.
  */

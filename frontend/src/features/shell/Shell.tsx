@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { PageShell } from '../../components/PageShell';
 import { Sidebar } from '../../components/Sidebar';
 import { useAuth } from '../../session/auth';
 import { DashboardPage } from '../dashboard/DashboardPage';
 import { PlaceholderPage } from '../placeholder/PlaceholderPage';
+import { UsuariosPage } from '../seguridad/UsuariosPage';
 import {
   DEFAULT_PAGE_ID,
   findPage,
@@ -23,6 +24,12 @@ export function Shell() {
     const groups = user ? visibleGroups(user.roles) : [];
     return groups[0]?.pages[0]?.id ?? DEFAULT_PAGE_ID;
   });
+
+  // Forbidden means "go back to the start", not a raw 403 on screen.
+  const goHome = useCallback(() => {
+    const visible = user ? visibleGroups(user.roles) : [];
+    setActivePageId(visible[0]?.pages[0]?.id ?? DEFAULT_PAGE_ID);
+  }, [user]);
 
   if (!user) {
     // Unreachable under RequireAuth; defensive.
@@ -51,6 +58,8 @@ export function Shell() {
     >
       {activePage.id === 'dashboard' ? (
         <DashboardPage />
+      ) : activePage.id === 'usuarios' ? (
+        <UsuariosPage onForbidden={goHome} />
       ) : (
         <PlaceholderPage title={activePage.title} />
       )}
