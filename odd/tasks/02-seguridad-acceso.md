@@ -1105,4 +1105,59 @@ Cierra el paso 4 de `odd/design/screen-design-plan.md` para la especificación d
 
 **Pendiente de decisión del dueño**: D4 (bloqueo temporal de S5 contra el estado «Inhabilitado» del nivel 1) queda en pie como desvío deliberado registrado; si el dueño quiere que la constancia viva en `## Specs`, la escribe el integrador. D5 (token de recuperación) sigue sin decidir formalmente, aunque la recomendación es token firmado sin estado, sin migración.
 
+### L30 — T5: SEG-U02 y SEG-U03 implementadas (2026-11-12, carril `feat/seg-t5-pantallas-seg`)
+
+**Alcance**: SEG-U02 (listado de usuarios, P1) y SEG-U03 (alta y edición de usuario, P3), las dos que `## Screens` §5 habilita contra el backend de T3. Las otras siete quedan intactas: SEG-U04, SEG-U05, SEG-U06, SEG-U07 y SEG-U09 esperan T7/T8. `## Specs`, `## Screens` y `## Tasks` no se tocaron.
+
+**S# cubiertos**: S1 (registro, modificación y baja lógica de cuentas desde la UI), S3 (catálogo cerrado de roles, multi-selección, roles acumulables), S6 (fortaleza de contraseña se muestra, no se decide en el cliente). S2 (auditoría) lo sigue cubriendo el backend: cada alta, modificación y baja dispara su fila, y ninguna respuesta expone la contraseña.
+
+**Superficie**
+
+| Tipo | Archivo |
+|---|---|
+| Primitivas | `frontend/src/components/DataTable.tsx`, `FilterBar.tsx`, `Pagination.tsx`, `FormField.tsx` |
+| Capa HTTP | `frontend/src/api/http.ts` (contrato `detail`/`campo`), `frontend/src/api/usuarios.ts` |
+| Pantallas | `frontend/src/features/seguridad/UsuariosPage.tsx`, `UsuarioFormPage.tsx` |
+| Armazón | `frontend/src/features/shell/Shell.tsx` (la página `usuarios` deja de ser marcador de posición) |
+| Pruebas | `usuariosListado.test.tsx` (11), `usuarioFormulario.test.tsx` (9), `test/accessFixtures.ts` |
+
+**Decisiones de implementación** (la especificación manda; esto es cómo se instancian sus zonas):
+
+1. **El texto libre se aplica al enviar; los selectores al cambiar.** La barra de filtros es un `form role="search"` con «Buscar» como control de envío. «Limpiar filtros» aparece solo cuando hay algún filtro aplicado, y es el mismo control que nombra el estado «sin coincidencias»: no se duplica el botón.
+2. **La acción «Nuevo usuario» del estado vacío es la del encabezado.** El estado vacío muestra el texto y no repite un botón idéntico a dos centímetros, que además rompería el nombre accesible único de la prueba.
+3. **Desactivar es directo, sin diálogo de confirmación.** UCE-SEG-02 no define un paso de confirmación; inventarlo cambia el flujo. La acción ya es una baja lógica y auditada, y está oculta en la fila propia y en las cuentas inactivas.
+4. **La columna Roles y el filtro Rol leen `GET /roles`.** Es el catálogo cerrado, la misma fuente que exige el selector de SEG-U03. La tabla espera al catálogo: un `codigo` crudo nunca es valor de columna. Si el catálogo falla, la tabla sigue y cae al código, sin inventar etiquetas.
+5. **Toda validación de negocio queda en el backend.** El formulario solo asegura obligatoriedad con las palabras exactas que devuelve el backend, y mapea `400` + `campo` al campo del formulario con `aria-describedby`. Fortaleza de contraseña, unicidad del correo y existencia del rol no se deciden en el cliente.
+6. **La edición manda lo mínimo**: `PATCH` solo con los campos realmente cambiados y `PUT .../roles` solo si el conjunto cambió. Sin cambios, no hay request y se vuelve al listado (un `PATCH` vacío es `400` por contrato).
+7. **Tras guardar, el listado vuelve a la página 1 sin filtros.** No lo exige la especificación y se registra: preservar filtros y offset exigiría izar ese estado a `UsuariosPage` sin beneficio funcional hoy.
+
+**Supuestos declarados**
+
+| ID | Supuesto | Por qué |
+|---|---|---|
+| A1 | Desactivar se ejecuta con un clic, sin confirmación | UCE-SEG-02 no define paso de confirmación (decisión 3) |
+| A2 | Si el catálogo de roles no carga, se muestra «No se pudieron cargar los roles» + Reintentar | La tabla de Estados de la especificación no cubre esa carga; sin catálogo no hay selector |
+| A3 | El «Limpiar filtros» del estado sin coincidencias es el de la barra de filtros | Evita dos controles con el mismo nombre accesible y el mismo efecto |
+
+**Huecos reportados, no resueltos en este carril**
+
+- **H1 — formato del correo sin dueño en el backend.** `## Screens` SEG-U03 exige «formato + único (400 con `campo`)». El único se cumple; el **formato no**: `UsuarioCreate.correo_electronico` es `str` (sin `EmailStr`) y `no-es-un-correo` se acepta. La UI usa `type="email"`, que es validación del navegador y no es autoridad de una regla R3. Decisión del integrador: agregar la validación al backend (work unit nuevo, con su `400` y `campo`) o corregir `## Screens`.
+- **H2 — 100 contra 120 caracteres en nombre y apellido.** `## Screens` fija «≤ 100 caracteres»; `UsuarioCreate`/`UsuarioUpdate` permiten 120 y por encima responden el `422` automático. La UI aplica 100: la especificación aprobada es autoridad de presentación y el nivel 3 no fija cota (`TEXT`). Consecuencia observada: el formulario bloquea valores de 101-120 que el backend acepta. Decisión del integrador: alinear `## Screens` a 120, o el backend a 100 con `400` + `campo`.
+- **H3 — la edición son dos llamadas, no una transacción.** `PATCH` y `PUT .../roles` pueden quedar a medias si la segunda falla: los campos ya están guardados y los roles no. La UI informa «No se pudo guardar el usuario» y «Reintentar» reanuda; el contrato no ofrece atomicidad entre ambas rutas y no se inventó.
+
+**Evidencia observada** (desde `frontend/`, con `node_modules` reinstalado por el incidente de herramientas de abajo):
+
+- RED previo: `npx vitest run src/features/seguridad` antes de escribir la implementación → **20 failed** (2 archivos, exit 1).
+- `npx tsc --noEmit` → exit 0, sin salida.
+- `npm run lint` → exit 0, sin hallazgos.
+- `npm test` → **6 archivos, 44 passed** (24 previas + 20 nuevas), 57,68 s.
+- `npm run build` → `✓ built in 6.81s`, 53 módulos, `dist/assets/index-oJ0OERvy.js` 251,14 kB.
+- **Diferencial**: suite completa en un worktree separado y desacoplado en `4bb0fc5` → **24 passed**; las mismas 24 aserciones siguen verdes después del cambio. Para cualquier página distinta de `usuarios`, `Shell` renderiza el mismo subárbol que antes (`dashboard` → `DashboardPage`, resto → `PlaceholderPage`), y `roleGating.test.tsx` fija el landing y el marcador de posición.
+
+**Incidente de herramientas, no del repositorio**: el probe diferencial se montó como worktree temporal con un *junction* de `node_modules`; al remover el worktree, Windows borró el contenido del directorio enlazado y vació `frontend/node_modules`. Se restauró con `npm ci` desde el `package-lock.json` versionado. Ningún archivo del repositorio cambió por eso; no queda rastro en el worktree.
+
+**Anomalía preexistente, no tocada**: `.atl/skill-registry.md` sigue modificado y sin commitear (G6, L20). No se commitea desde el carril.
+
+**Próximo paso**: SEG-U04 y SEG-U05 esperan T7; SEG-U09 y SEG-U06/U07 esperan T8, D5 y la aprobación de la dependencia SMTP. H1 y H2 necesitan una decisión del integrador antes de que el formulario se replique en el resto de los subsistemas, porque fijan el patrón.
+
 
