@@ -62,6 +62,7 @@ El nivel 1 exige validar la fortaleza (UCE-SEG-02 paso 6, UCE-SEG-08 paso 7) sin
 | T3 | CRUD de usuarios y asignación de roles (solo `administrador`), con auditoría de cada alta/baja/modificación | S1, S2, S3, S6 | inline | ✅ |
 | T4 | Inventario y especificación de las pantallas de SEG (pasos 1-4 de `odd/design/screen-design-plan.md`) | S1, S6 | — | ⏳ |
 | T5 | Implementación de las pantallas de SEG aprobadas en T4 (patrones P1 y P3) | S1, S6 | — | ⏳ |
+| T6 | Endurecer T3 según el review nativo: traducir la carrera de unicidad de correo y de reemplazo de roles a `400` con `campo`, y pinear `direccion_ip` en las filas de auditoría | S1, S2 | — | ⏳ |
 
 ---
 
@@ -309,6 +310,15 @@ No era un detalle cosmético: **contradecía la decisión 7 de L13** («un valor
 | `R3-003` … `R3-007` | reliability | Huecos de cobertura: guards de rol no probados en `GET /usuarios/{id}`, `PATCH` y `PUT .../roles`; orden del listado afirmado con dos usuarios de **igual** apellido (no distingue orden por `(apellido, nombre, correo)`); rama idempotente de `PUT .../roles` sin test; `offset > 0` y paginación de `/roles` sin test; cota inferior de 8 caracteres nunca afirmada como aceptada (el positivo usa 10). |
 
 **Disposición**: todo lo anterior es trabajo posterior, en un candidato nuevo, no una razón para re-abrir este. No se arregló en esta sesión porque el cierre nativo lo clasifica como informativo y ampliar el alcance sin autorización choca con el `## Scope guard` de `AGENTS.md`. Los dos `WARNING` de concurrencia y el hueco de `direccion_ip` son los primeros candidatos para el próximo work unit de SEG.
+
+### L16 — T6 abierta (2026-11-12)
+
+**Pedido del usuario, textual**: «si» sobre la recomendación de cerrar los dos `WARNING` de concurrencia y pinear `direccion_ip`, y después «Dbeeria hacerlo en otra sesion? Si es así, dame el prompt necesario».
+
+Se abre **T6** para que el trabajo exista como tarea derivable desde el documento: un carril recibe un puntero, no un prompt con la política adentro, y L15 es prosa de cierre, no una tarea con criterio de aceptación. Alcance de T6: `R3-001`/`R4-EMAIL-UNIQUENESS-RACE`, `R4-ROLES-REPLACE-RACE` y `R3-002`. Los huecos de cobertura `R3-003` a `R3-007` quedan fuera: son aserciones de tests, no defectos, y no bloquean ninguna entrega.
+
+T6 escribe solo `backend/app/` y `backend/tests/`, no requiere migración y no toca `## Specs` ni `## Screens`.
+
 
 
 
