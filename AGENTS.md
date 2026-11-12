@@ -309,6 +309,21 @@ this file carries the rules.
   the primary worktree, confirm it is healthy, then re-run. Never conclude that a change
   broke the suite before the database answered.
 
+## Review consent (owner preference)
+
+The owner pre-authorizes review for every candidate the agent itself identifies as due.
+The standing answer to that candidate's consent declaration is `granted`: declare it at
+START instead of relaying the question, and do not block waiting for an envelope.
+
+This is an owner decision about consent, not a mode default. It never enables
+receipt-driven development by itself, and a clone or global `review mode disable` still
+wins. If the runtime refuses the pre-answer or emits the envelope anyway, the envelope is
+relayed and the work stops: no chat text substitutes for it.
+
+The obligation it creates is reporting, not silence. The closing report names the assessed
+tier, the lenses and their reason, and every check observed, so the evidence the envelope
+would have shown is still in front of the owner.
+
 ## Definition of done per work unit
 
 - Applicable checks observed green, and the exact commands reported.
