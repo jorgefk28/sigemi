@@ -248,4 +248,26 @@ UCE–SEG-03 (Cerrar Sesión) no nombra pantalla: es una acción del armazón, y
 
 **Defecto de herramientas observado**: al abrir el carril, `git status` ya traía `.atl/skill-registry.md` modificado sin commit: `gentle-ai skill-registry refresh` reescribió el título y las rutas absolutas de los tres skills de alcance proyecto (`C:\Users\...\sigemi\...` → `C:\work\sigemi-t4\...`). Cada worktree genera rutas distintas, así que el archivo cambia por carril y produce conflicto por bytes que nadie editó, contra el objetivo de L10/L11 de que la base no dependa del ambiente. No se tocó ni se commiteó en este work unit (G6).
 
+### L14 — Aprobación humana de las pantallas de SEG (2026-11-12)
+
+**Aprobación explícita del dueño, textual**: «aprobado». Cierra el paso 4 de `odd/design/screen-design-plan.md` para `odd/design/seg-screens-draft.md` (commit `2a71c21`), presentado con las seis decisiones abiertas y su recomendación. Se lee como **aprobado tal cual**, con D1-D6 en la dirección recomendada:
+
+| Punto | Dirección aprobada |
+|---|---|
+| D1 | Contraseña obligatoria en el alta, opcional en la edición («dejar en blanco para conservar») |
+| D2 | Roles en multi-selección, mínimo uno (nivel 2 §6.2 + S3 + `usuario_rol`) |
+| D3 | «Mi perfil» por menú del usuario en el header; el sidebar sigue siendo módulos de negocio |
+| D4 | Se mantiene el bloqueo temporal de S5; la UI dice «cuenta bloqueada temporalmente», nunca «inhabilitada» |
+| D5 | Token de recuperación firmado sin estado (sin migración). El envío por SMTP queda sujeto a la aprobación de dependencia que exige `AGENTS.md`, en su propio work unit |
+| D6 | El filtro `accion` valida contra `{crear, modificar, eliminar, consultar}` |
+
+**Consecuencias registradas**:
+
+1. **D4 deja S5 como desvío deliberado del nivel 1** (UCE–SEG-01 exc. paso 5 pide estado «Inhabilitado», la implementación bloquea temporalmente). El nivel 1 no se edita. La constancia vive en este Log; si el dueño quiere que quede en `## Specs`, la escribe el integrador, porque `## Specs` no es superficie de este carril.
+2. **El borrador pasa a ser especificación**: una pantalla aprobada no se rediseña durante la implementación. Si T5 encuentra un problema, se reporta y se decide, no se ajusta sobre la marcha.
+3. **T4 queda terminada, pero la fila T4 de `## Tasks` sigue en ⏳**: `## Tasks` pertenece al carril de T3 (`AGENTS.md` §Parallel execution). El integrador o ese carril la marcan al mergear.
+4. **T5 no está desbloqueada del todo**: SEG-U02 y SEG-U03 pueden implementarse contra T3; SEG-U04, SEG-U05, SEG-U06, SEG-U07 y SEG-U09 siguen esperando las tareas de backend de G1 y G2 más D5.
+
+**Próximo paso concreto**: el integrador fusiona `odd/design/seg-screens-draft.md` en `## Screens` de este documento, entre `## Specs` y `## Tasks`, y agrega las tareas de backend de G1 y G2.
+
 
