@@ -27,19 +27,45 @@ class UsuarioRead(BaseModel):
 
 
 class UsuarioCreate(BaseModel):
-    nombre: str = Field(min_length=1, max_length=120)
-    apellido: str = Field(min_length=1, max_length=120)
-    correo_electronico: str = Field(min_length=3, max_length=255)
-    contrasena: str = Field(min_length=8, max_length=128)
-    roles: list[str] = Field(min_length=1)
+    """Payload for a new user (UCE-SEG-02, paso 4).
+
+    Only upper bounds live here. Lower bounds and the strength rule (S6) are
+    business validation and must answer ``400`` with ``campo``; a schema bound
+    would pre-empt them with the automatic ``422`` instead. Blank and oversized
+    values are rejected by ``app.services.usuarios``.
+    """
+
+    nombre: str = Field(max_length=120)
+    apellido: str = Field(max_length=120)
+    correo_electronico: str = Field(max_length=255)
+    contrasena: str
+    roles: list[str]
 
 
 class UsuarioUpdate(BaseModel):
-    nombre: str | None = Field(default=None, min_length=1, max_length=120)
-    apellido: str | None = Field(default=None, min_length=1, max_length=120)
-    correo_electronico: str | None = Field(default=None, min_length=3, max_length=255)
+    nombre: str | None = Field(default=None, max_length=120)
+    apellido: str | None = Field(default=None, max_length=120)
+    correo_electronico: str | None = Field(default=None, max_length=255)
     estado: str | None = None
 
 
 class RolesUpdate(BaseModel):
-    roles: list[str] = Field(min_length=1)
+    """Full replacement of a user's role set; the closed catalog decides."""
+
+    roles: list[str]
+
+
+class Paginacion(BaseModel):
+    """Envelope every list endpoint answers (``AGENTS.md``)."""
+
+    total: int
+    limit: int
+    offset: int
+
+
+class UsuarioList(Paginacion):
+    items: list[UsuarioRead]
+
+
+class RolList(Paginacion):
+    items: list[RolRead]

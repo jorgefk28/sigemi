@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -33,6 +33,15 @@ def _unauthorized() -> HTTPException:
         detail="Credenciales inválidas",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+def client_ip(request: Request) -> str | None:
+    """Return the originating IP address, or ``None`` when unavailable.
+
+    RF-14 requires the IP of whoever produced an audited event, so every module
+    that writes audit rows takes it from here instead of re-deriving it.
+    """
+    return request.client.host if request.client else None
 
 
 def get_current_user(

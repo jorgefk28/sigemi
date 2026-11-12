@@ -59,9 +59,10 @@ El nivel 1 exige validar la fortaleza (UCE-SEG-02 paso 6, UCE-SEG-08 paso 7) sin
 |---|---|---|---|---|
 | T1 | Primitivas de seguridad (bcrypt, JWT), servicio de auditoría append-only, migración de datos del catálogo de roles, fixtures de test con rollback | S2, S3, S4 | delegated (2 en paralelo) | ✅ |
 | T2 | API de autenticación: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `get_current_user`, `require_roles`, wiring del router | S1, S4, S5 | delegated | ✅ |
-| T3 | CRUD de usuarios y asignación de roles (solo `administrador`), con auditoría de cada alta/baja/modificación | S1, S2, S3, S6 | — | ⏳ |
+| T3 | CRUD de usuarios y asignación de roles (solo `administrador`), con auditoría de cada alta/baja/modificación | S1, S2, S3, S6 | inline | ✅ |
 | T4 | Inventario y especificación de las pantallas de SEG (pasos 1-4 de `odd/design/screen-design-plan.md`) | S1, S6 | — | ⏳ |
 | T5 | Implementación de las pantallas de SEG aprobadas en T4 (patrones P1 y P3) | S1, S6 | — | ⏳ |
+| T6 | Endurecer T3 según el review nativo: traducir la carrera de unicidad de correo y de reemplazo de roles a `400` con `campo`, y pinear `direccion_ip` en las filas de auditoría | S1, S2 | — | ⏳ |
 
 ---
 
@@ -221,5 +222,105 @@ Eso **contradice** el contrato de idioma previo de `AGENTS.md` («commit message
 **Evidencia observada**: 500 tokens generados, `tamper_signature` aplicado a cada uno → **0 firmas idénticas**, encabezado y payload preservados en los 500. Los dos probes dirigidos: `2 passed`. Suite completa desde `backend/`: **320 passed, 1 warning, 20.29 s**. `ruff check .` exit 0 y `ruff format --check .` → 42 archivos ya formateados.
 
 **Consecuencia sobre T3**: el criterio «≥ 320 en verde sobre la base actual» vuelve a ser observable. La base de los dos carriles pasa a este commit.
+
+### L13 — Evidencia de T3 (2026-11-12)
+
+**Superficie implementada** (`/api/v1`, todas las rutas exigen rol `administrador`):
+
+| Método | Ruta | UCE-SEG-02 |
+|---|---|---|
+| `GET` | `/usuarios` | paso 2 (listado), con `q`, `correo_electronico`, `estado`, `rol`, `limit`, `offset` |
+| `GET` | `/usuarios/{id}` | selección de un usuario existente |
+| `POST` | `/usuarios` | pasos 4-7 (alta) |
+| `PATCH` | `/usuarios/{id}` | modificación y baja lógica (`estado = inactivo`) |
+| `PUT` | `/usuarios/{id}/roles` | paso 5 (asignación de roles) |
+| `GET` | `/roles` | paso 5: catálogo cerrado que alimenta el selector |
+
+**Decisiones de contrato** (fijadas acá porque el nivel 1 no las cubre y las heredan los otros cuatro subsistemas):
+
+1. **Toda validación de campo responde `400` con `{"detail", "campo"}`**, incluida la unicidad del correo. El paso 6 de UCE-SEG-02 agrupa «unicidad del correo» y «fortaleza de la contraseña» como la misma validación, así que ambas usan la misma forma y el formulario puede ubicar el mensaje sin casos especiales. No se usa `409`: el contrato de `AGENTS.md` §Response contract ya nombra el `400` con `campo` como la respuesta de validación por campo, y dos formas para el mismo grupo de reglas obliga a la SPA a distinguirlas.
+2. **La baja es `PATCH` con `estado = inactivo`**, no un `DELETE`: S1 prohíbe el borrado físico y `DELETE /usuarios/{id}` responde `405` (test `test_delete_is_not_exposed`).
+3. **La baja lógica se audita como `modificar`**, no como `eliminar`: la fila no se borra, y la auditoría debe decir lo que pasó. El cambio queda como `("estado", "activo", "inactivo")`.
+4. **`PUT /usuarios/{id}/roles` reemplaza el conjunto completo** (idempotente). Un `PATCH` parcial obligaría a inventar una semántica de merge que ningún requisito pide.
+5. **`limit` se recorta a 100, no se rechaza**: el contrato dice «capped at 100» y el cuerpo devuelve el `limit` efectivo, así el cliente se entera del recorte.
+6. **Un `PATCH` sin campos responde `400`** (`"No se enviaron campos para modificar"`) en vez de escribir una auditoría vacía.
+7. **El texto se normaliza** en `nombre`, `apellido` y `correo_electronico` (trim; el correo además a minúsculas). Un valor en blanco responde `400` con `campo`. Por eso los schemas solo llevan cotas **superiores**: un `min_length` habría convertido el blanco en el `422` automático en vez del `400` con mensaje. Ver la corrección en L14.
+8. **El único autobloqueo prohibido es el que nombra el requisito**: desactivar la propia cuenta (paso 7, excepción). Quitarse el rol `administrador` a uno mismo **no** está prohibido por el nivel 1 y no se inventó la regla; queda registrado como hueco a decidir por el dueño.
+9. **Fortaleza de contraseña** (S6) en `app/services/usuarios.py::validar_contrasena`, con orden fijo: mínimo 8 caracteres, techo de 72 **bytes UTF-8**, al menos una letra, al menos un dígito. Los límites de longitud salieron del schema de Pydantic (`UsuarioCreate.contrasena`), porque un `max_length` habría producido el `422` automático en vez del `400` con mensaje que exige S6.
+
+**Auditoría** (RF-14): un alta escribe una fila `crear` con cambios `correo_electronico`, `estado` y `roles`; una modificación escribe una fila `modificar` con un `cambio_auditoria` por campo realmente cambiado (valor anterior y nuevo); un reemplazo de roles escribe `("roles", "anterior", "nuevo")`. La contraseña nunca se escribe en auditoría ni se devuelve en ninguna respuesta (aserción explícita en el test del alta).
+
+**Archivos escritos, incluidos tres fuera de la tabla del carril y por qué**:
+
+- `backend/app/api/v1/router.py` — sin el wiring no hay ruta; dos líneas.
+- `backend/app/api/deps.py` — `client_ip(request)` pasa a `deps.py` para no duplicar el helper en cada módulo que escribe auditoría. `app/api/v1/auth.py` lo consume ahora desde ahí: **el comportamiento es idéntico**, y los tres módulos de tests de auth lo siguen probando en verde.
+- `backend/app/schemas/access.py` — `UsuarioList`, `RolList` y la relajación de los límites de contraseña explicada en el punto 9.
+
+**Prueba de comportamiento previo**: `serializar_usuario` cambió por dentro (ahora delega en `serializar_usuarios`, que resuelve los roles de toda la página en una consulta). Diferencial contra la implementación del commit base, ejecutado desde `backend/` con la base y el catálogo reales, para 0, 1 y 3 roles: `viejo == nuevo == lote` en los tres casos, `0` diferencias. El probe es ad-hoc y **no** se commitea; `/auth/me` ya está pinneado por `tests/test_auth.py` y `tests/test_auth_contract.py`.
+
+**Evidencia observada**:
+
+- RED previo: la suite del archivo nuevo falló completa (exit 1) antes de escribir la implementación.
+- `pytest tests/test_usuarios.py -o addopts=` → **30 passed, 1 warning in 40.28s**.
+- `pytest -o addopts=` completo desde `backend/` con `DATABASE_URL` apuntando a `sigemi_t3` → **350 passed, 1 warning in 61.31s**, exit 0.
+- `ruff check .` → `All checks passed!`; `ruff format --check .` → `46 files already formatted`.
+- Criterio de L12 cumplido: ≥ 320 sobre la base actual, con 30 tests nuevos que lo elevan a 350.
+
+**Nota de operación**: `backend/pytest.ini` fija `addopts = -q`. Un `-q` adicional en la línea de comando compone `-qq` y **borra la línea de resumen**, así que el conteo de passed hay que leerlo de los puntos o con `-o addopts=`. No es un defecto de la suite, pero explica por qué una corrida verde no muestra «N passed».
+
+**Anomalía preexistente, no tocada**: `.atl/skill-registry.md` estaba modificado al abrir el carril. Es la regeneración local del registry, que reescribe las rutas absolutas del árbol principal a `C:\work\sigemi-t3` y elimina la fila de `impeccable` que L11 documenta como excluida a propósito. No se commitea: es estado del carril, no del repositorio.
+
+### L14 — Verificación independiente de T3 y corrección (2026-11-12)
+
+Verificador independiente sobre `c2bd43f`. Veredicto: **un bloqueante**; S2, S3 y S6 pass; S1 fail por el bloqueante. Invariantes de autorización, baja lógica, autodesactivación, auditoría, listado, roles y no-regresión de `/auth` pasaron.
+
+**Bloqueante B1 — correo en blanco aceptado**. `correo_electronico = "   "` (3 espacios) pasaba el `min_length=3` de Pydantic y, tras el `strip`, se persistía como cadena vacía: `POST /usuarios` respondía `201` y `PATCH` respondía `200`. Reproducido con dos probes, `201 == 400` y `200 == 400` fallando.
+
+No era un detalle cosmético: **contradecía la decisión 7 de L13** («un valor en blanco responde `400` con `campo`»), que el código no cumplía para el correo. Lo detectó un verificador leyendo el log contra el código, que es exactamente su trabajo; mis 30 tests no lo cubrían porque probaban el contrato que yo había escrito, no el que yo había documentado.
+
+**Corrección** (una sola pasada, más los probes del verificador como tests):
+
+- `correo_electronico` pasa por `normalizar_texto` en el alta y en la modificación, igual que `nombre` y `apellido`, y recién después se pasa a minúsculas.
+- `UsuarioCreate` y `UsuarioUpdate` conservan solo cotas superiores: un `min_length` en cualquier campo de texto libre habría devuelto `422` en vez del `400` con `campo`. Vale también para el advisory 1 del verificador (1-2 espacios daban `422`).
+- Cuatro tests de regresión nuevos: blancos en el alta, blancos en la modificación, `validate-before-apply` (un payload rechazado por `estado` no aplica el `nombre` que lo acompañaba) y comodines de `LIKE` escapados en `q` (`_` y `%` matchean literal).
+
+**Advisory aceptado, sin cambio**: quitarse el rol `administrador` a uno mismo sigue sin bloquearse. El nivel 1 no lo prohíbe y no se inventa la regla; queda como hueco declarado en la decisión 8 de L13 para que lo decida el dueño.
+
+**Evidencia observada**: `pytest tests/test_usuarios.py` → **34 passed** (30 + 4) en 42,59 s; `pytest` completo → **354 passed**, 1 warning, 62,29 s; `ruff check .` → `All checks passed!`; `ruff format --check .` → `46 files already formatted`. El verificador confirmó, además, que no quedó ningún archivo de probe en el worktree.
+
+### L15 — Review nativo de T3: aprobado (2026-11-12)
+
+**Candidato**: `4980322..8f90fae`, `base_tree` `bb3efbf`, `candidate_tree` `78fab9a`, 10 archivos, 1421 líneas. Linaje `review-6a83da50eeaf78aa`.
+
+**Tier**: `high` (`review_due_reason: high_risk`), por `hot_path` en `backend/app/api/v1/auth.py` y por la escalada del ítem 2 (seguridad: guards de rol y credenciales). RDD encendido por `global`.
+
+**Lentes y por qué**: `risk` (guards de rol y manejo de credenciales), `resilience` (rechazos que no deben dejar escritura parcial), `readability` (contrato de API y mensajes al usuario), `reliability` (reglas de validación y auditoría). Consentimiento pre-answer `granted`, según la preferencia del dueño registrada en `AGENTS.md`.
+
+**Resultado**: `state: approved`, autoridad quemada (`review-acknowledged/v1`, `authority: burned`). **Ningún bloqueante**, ninguna corrección abierta. Readability: cero hallazgos.
+
+**Doce hallazgos informativos** (el cierre nativo los declara no bloqueantes y prohíbe re-correr el review de este candidato por ellos):
+
+| Hallazgo | Lente | Lectura |
+|---|---|---|
+| `R1-audit-ip-proxy` / `R4-AUDIT-IP-PROXY` | risk, resilience | Ya documentado en L5 (advisory 3): `request.client.host` devuelve la IP del proxy. Se refuerza ahora: **tres** módulos dependen del helper, así que la política de proxy confiable conviene fijarla en el work unit de despliegue. |
+| `R1-self-demotion-gap` | risk | Ya declarado en L13 decisión 8 y L14: quitarse el rol `administrador` a uno mismo no está prohibido por el nivel 1. Sigue siendo decisión del dueño. |
+| `R3-001` / `R4-EMAIL-UNIQUENESS-RACE` | reliability, resilience | La unicidad del correo es `SELECT` y después `INSERT`: dos altas concurrentes con el mismo correo pasan el pre-chequeo y la perdedora termina en `IntegrityError` sin manejar → `500`, no el `400` con `campo` que fija el contrato. La restricción de la base preserva la integridad; lo que se rompe es la **forma del error** bajo concurrencia. **Arreglo propuesto**: capturar `IntegrityError` alrededor del `commit` y traducirlo a `400` con `campo="correo_electronico"`. |
+| `R4-ROLES-REPLACE-RACE` | resilience | Mismo patrón en `PUT .../roles`: dos reemplazos simultáneos pueden colisionar en la PK de `usuario_rol` y devolver `500`. Doble submit de un formulario lento alcanza para dispararlo. |
+| `R3-002` | reliability | Ningún test afirma `direccion_ip` en una fila de auditoría. Es determinístico: un `None` o una IP constante pasarían la suite. |
+| `R3-003` … `R3-007` | reliability | Huecos de cobertura: guards de rol no probados en `GET /usuarios/{id}`, `PATCH` y `PUT .../roles`; orden del listado afirmado con dos usuarios de **igual** apellido (no distingue orden por `(apellido, nombre, correo)`); rama idempotente de `PUT .../roles` sin test; `offset > 0` y paginación de `/roles` sin test; cota inferior de 8 caracteres nunca afirmada como aceptada (el positivo usa 10). |
+
+**Disposición**: todo lo anterior es trabajo posterior, en un candidato nuevo, no una razón para re-abrir este. No se arregló en esta sesión porque el cierre nativo lo clasifica como informativo y ampliar el alcance sin autorización choca con el `## Scope guard` de `AGENTS.md`. Los dos `WARNING` de concurrencia y el hueco de `direccion_ip` son los primeros candidatos para el próximo work unit de SEG.
+
+### L16 — T6 abierta (2026-11-12)
+
+**Pedido del usuario, textual**: «si» sobre la recomendación de cerrar los dos `WARNING` de concurrencia y pinear `direccion_ip`, y después «Dbeeria hacerlo en otra sesion? Si es así, dame el prompt necesario».
+
+Se abre **T6** para que el trabajo exista como tarea derivable desde el documento: un carril recibe un puntero, no un prompt con la política adentro, y L15 es prosa de cierre, no una tarea con criterio de aceptación. Alcance de T6: `R3-001`/`R4-EMAIL-UNIQUENESS-RACE`, `R4-ROLES-REPLACE-RACE` y `R3-002`. Los huecos de cobertura `R3-003` a `R3-007` quedan fuera: son aserciones de tests, no defectos, y no bloquean ninguna entrega.
+
+T6 escribe solo `backend/app/` y `backend/tests/`, no requiere migración y no toca `## Specs` ni `## Screens`.
+
+
+
+
 
 

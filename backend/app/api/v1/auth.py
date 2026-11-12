@@ -9,7 +9,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import client_ip, get_current_user
 from app.core.config import settings
 from app.core.security import (
     create_access_token,
@@ -26,11 +26,6 @@ from app.services.access import roles_de_usuario, serializar_usuario
 from app.services.audit import registrar_auditoria
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-def _client_ip(request: Request) -> str | None:
-    """Return the originating IP address, or ``None`` when unavailable."""
-    return request.client.host if request.client else None
 
 
 @router.post("/login", response_model=Token)
@@ -78,7 +73,7 @@ def login(
                 accion=AccionAuditoria.ACCEDER,
                 entidad_afectada="usuario",
                 entidad_id=usuario.id,
-                direccion_ip=_client_ip(request),
+                direccion_ip=client_ip(request),
             )
         db.commit()
         raise HTTPException(
@@ -97,7 +92,7 @@ def login(
         accion=AccionAuditoria.ACCEDER,
         entidad_afectada="usuario",
         entidad_id=usuario.id,
-        direccion_ip=_client_ip(request),
+        direccion_ip=client_ip(request),
     )
     db.commit()
 
