@@ -756,7 +756,7 @@ construye esas cuatro primitivas en SEG-U02 y SEG-U03.
 | T5 | Implementación de las pantallas de SEG (patrones P1 y P3). **SEG-U02, SEG-U03, SEG-U04 y SEG-U05 entregadas** (L23 en `c033122`; L25 en `98f9a73`); SEG-U06, U07 y U09 esperan T8, D5 y SMTP; SEG-U08 espera D3 | S1, S6 | delegated | ⏳ |
 | T6 | Endurecer T3 según el review nativo: traducir la carrera de unicidad de correo y de reemplazo de roles a `400` con `campo`, pinear `direccion_ip` en las filas de auditoría, y validar el formato del correo con `400` + `campo` (UCE–SEG-02, excepción del paso 6; L24) | S1, S2 | delegated | ✅ (L25, integrada en `d160cd9`) |
 | T7 | Backend de auditoría (G1): `GET /api/v1/auditoria` y `GET /api/v1/auditoria/{id}`, solo `administrador`, con filtros `usuario_id`, `fecha_desde`, `fecha_hasta` y `accion` | S2 | delegated | ✅ (L22, integrada en `6f5113b`) |
-| T8 | Backend de contraseñas (G2): `POST /api/v1/auth/password`; `POST /api/v1/auth/recuperacion` y `/confirmar` quedan sujetos a D5 (token) y a la aprobación de la dependencia SMTP | S1, S6 | — | ⏳ |
+| T8 | Backend de contraseñas (G2): `POST /api/v1/auth/password`; `POST /api/v1/auth/recuperacion` y `/confirmar` quedan sujetos a D5 (token) y a la aprobación de la dependencia SMTP | S1, S6 | — | ⏳ (parte 1 ✅, L27) |
 | T9 | Auditoría con el catálogo cerrado de `accion` (nivel 3, L24): auditar el bloqueo por intentos fallidos como `bloquear` en vez de `acceder`, y alinear el filtro de `GET /auditoria` al catálogo completo | S2 | delegated | ✅ (L25, integrada en `d160cd9`) |
 
 ---
@@ -1326,3 +1326,29 @@ Ningún carril editó `## Specs`, `## Screens`, `## Tasks` ni `## Log`: el integ
 **Estado que deja**: la transacción queda en `reviewing`, 2 de 3 lentes admitidas, sin corrección y sin acknowledgement. No se ejecutó `abandon` ni `invalidate`: la decisión de liberar la autoridad es del dueño. **No hay veredicto de review sobre este candidato**, y no se infiere uno.
 
 **Consecuencia sobre el trabajo**: ninguna sobre el código. El candidato está commiteado y verificado en `main` (`689deb4`) con los gates observados en L25. El review nativo es una vista externa adicional; la entrega sigue la política ordinaria del repositorio.
+
+### L27 — Evidencia de T8, parte 1 (2026-11-16, carril `feat/seg-t8-contrasenas`)
+
+**Superficie implementada** (`/api/v1`, autenticada con `get_current_user`):
+
+| Método | Ruta | UCE-SEG-08 |
+|---|---|---|
+| `POST` | `/auth/password` | pasos 4-7: valida la contraseña actual, valida la fortaleza de la nueva (S6), actualiza el hash y registra la auditoría; responde `204` sin cuerpo |
+
+**Decisiones de contrato** (fijadas por el integrador; este carril las implementó tal cual):
+
+1. **La contraseña actual incorrecta responde `400` con `{"detail": "La contraseña actual es incorrecta", "campo": "contrasena_actual"}`**, no `401`: es validación de campo sobre una sesión válida, no un fallo de autenticación, y el contrato de `AGENTS.md` §Response contract ubica la validación de campo en `400` con `campo`. No se reimplementó el desafío OAuth2: el `401` sin token o con token inválido lo sigue emitiendo `deps.get_current_user` con `WWW-Authenticate: Bearer`.
+2. **S6 se reutiliza, no se duplica**: `validar_contrasena` ganó un parámetro `campo: str = "contrasena"`. El alta conserva su mensaje y su campo por defecto; el cambio pasa `campo="contrasena_nueva"`. El orden de reglas sigue siendo determinístico (mínimo 8 caracteres → techo de 72 bytes UTF-8 → letra → dígito).
+3. **El cuerpo JSON es `{"contrasena_actual": str, "contrasena_nueva": str}` sin cotas de schema**: ambas reglas son de negocio y deben responder `400` con `campo`; una cota de Pydantic habría pre-emptado con el `422` automático (mismo criterio que `UsuarioCreate`, L13 decisión 9). Solo el login consume `application/x-www-form-urlencoded`.
+4. **Éxito: `204 No Content`, sin cuerpo.** Nunca se devuelve ni se loguea `contrasena_hash` ni contraseñas (invariante de `AGENTS.md`).
+5. **Auditoría**: una fila `auditoria` con `accion="modificar"`, `modulo="seguridad"`, `entidad_afectada="usuario"`, `entidad_id=<id del usuario>`, `direccion_ip=client_ip(request)`, y una `cambio_auditoria` con `campo="contrasena_hash"` y ambos valores `NULL`: el nombre del campo documenta qué cambió y el invariante prohíbe registrar el hash. Append-only, como todo el servicio.
+6. **Sin revocación de tokens**: no existe infraestructura de revocación (advisory 4 de L5) y no se inventó.
+
+**Fuera de alcance respetado**: `POST /auth/recuperacion` y `POST /auth/recuperacion/confirmar` **no se implementaron ni se dejaron preparados**: siguen bloqueados por D5 (token de recuperación) y por la aprobación de la dependencia SMTP. Sin revisión de Alembic, sin dependencias nuevas, sin tocar `app/api/v1/router.py` (el router de `auth` ya existe con `prefix="/auth"`).
+
+**Archivos escritos**: `backend/app/schemas/auth.py` (schema `CambioContrasena`), `backend/app/services/usuarios.py` (parámetro `campo` en `validar_contrasena`), `backend/app/api/v1/auth.py` (endpoint `POST /auth/password` + helper `_rechazo_campo`), `backend/tests/test_seg_password.py` (nuevo, 8 casos: camino feliz, actual incorrecta, 4 reglas de S6, auditoría, sin sesión). `## Specs`, `## Screens` y las filas de otras tareas no se tocaron.
+
+**Evidencia observada**:
+
+- **Gates observados por el integrador** desde `backend/` del worktree: `pytest` → `405 passed, 1 warning`; `ruff check .` → `All checks passed!`; `ruff format --check .` → `52 files already formatted`. El carril no pudo correrlos (`shell` denegada al subagente con `permission.rejected`), así que la evidencia la produjo el integrador antes de commitear, no el carril.
+- El comportamiento previo tocado (`validar_contrasena` con su mensaje y `campo="contrasena"` por defecto) queda cubierto por la suite existente de `test_usuarios.py`, que la firma nueva no altera.
