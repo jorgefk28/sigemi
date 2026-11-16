@@ -165,7 +165,7 @@ def test_audit_on_lockout_only(client, db: Session, usuario_factory) -> None:
 
     auditorias = db.query(Auditoria).filter_by(usuario_id=usuario.id).all()
     assert len(auditorias) == 1
-    assert auditorias[0].accion == "acceder"
+    assert auditorias[0].accion == "bloquear"
     assert auditorias[0].modulo == "seguridad"
     assert auditorias[0].entidad_afectada == "usuario"
     assert auditorias[0].direccion_ip is not None

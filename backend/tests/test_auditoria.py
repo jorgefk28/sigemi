@@ -236,9 +236,8 @@ def test_list_rejects_action_outside_the_closed_set(
 ):
     token, _admin = _admin_token(client, usuario_factory)
 
-    # D6 fixes the filter set at the four level-3 actions; ``acceder`` is a
-    # value T2 writes for login and the approved filter does not offer it.
-    for accion in ("borrar", "acceder"):
+    # The closed catalog has six actions (level 3); anything else is rejected.
+    for accion in ("borrar", "retirar"):
         response = client.get(
             AUDITORIA_URL, params={"accion": accion}, headers=_headers(token)
         )
@@ -246,8 +245,36 @@ def test_list_rejects_action_outside_the_closed_set(
         cuerpo = response.json()
         assert cuerpo["campo"] == "accion"
         assert cuerpo["detail"] == (
-            "El tipo de acción debe ser crear, modificar, eliminar o consultar"
+            "El tipo de acción debe ser crear, modificar, eliminar, "
+            "consultar, acceder o bloquear"
         )
+
+
+def test_list_filters_by_acceder_and_bloquear(
+    client: TestClient, db: Session, usuario_factory
+):
+    """Both login events are offered by the filter (level 3 closed catalog)."""
+    token, _admin = _admin_token(client, usuario_factory)
+    actor = usuario_factory(roles=("bioquimico",))
+    accedido = _evento(db, actor=actor, accion="acceder")
+    bloqueado = _evento(db, actor=actor, accion="bloquear")
+    _evento(db, actor=actor, accion="crear")
+
+    acceder = client.get(
+        AUDITORIA_URL,
+        params={"usuario_id": str(actor.id), "accion": "acceder"},
+        headers=_headers(token),
+    )
+    bloquear = client.get(
+        AUDITORIA_URL,
+        params={"usuario_id": str(actor.id), "accion": "bloquear"},
+        headers=_headers(token),
+    )
+
+    assert acceder.status_code == 200, acceder.text
+    assert [item["id"] for item in acceder.json()["items"]] == [str(accedido.id)]
+    assert bloquear.status_code == 200, bloquear.text
+    assert [item["id"] for item in bloquear.json()["items"]] == [str(bloqueado.id)]
 
 
 def test_list_rejects_inverted_date_range(client: TestClient, usuario_factory):
