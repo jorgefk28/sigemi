@@ -1,10 +1,11 @@
-"""Authentication endpoints: login and current-user profile."""
+"""Authentication endpoints: login, current-user profile and password change."""
 
 from __future__ import annotations
 
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -13,6 +14,7 @@ from app.api.deps import client_ip, get_current_user
 from app.core.config import settings
 from app.core.security import (
     create_access_token,
+    hash_password,
     token_expires_in_seconds,
     verify_password,
 )
@@ -21,9 +23,10 @@ from app.db.session import get_db
 from app.models.access import Usuario
 from app.models.enums import AccionAuditoria, EstadoActivo
 from app.schemas.access import UsuarioRead
-from app.schemas.auth import Token
+from app.schemas.auth import CambioContrasena, Token
 from app.services.access import roles_de_usuario, serializar_usuario
 from app.services.audit import registrar_auditoria
+from app.services.usuarios import ReglaDeUsuario, validar_contrasena
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -106,3 +109,51 @@ def me(
 ) -> UsuarioRead:
     """Return the authenticated user's profile."""
     return serializar_usuario(db, usuario)
+
+
+def _rechazo_campo(regla: ReglaDeUsuario) -> JSONResponse:
+    """Answer ``400`` with the field-scoped body the SPA expects."""
+    contenido: dict[str, str] = {"detail": regla.detail}
+    if regla.campo is not None:
+        contenido["campo"] = regla.campo
+    return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=contenido)
+
+
+@router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
+def cambiar_contrasena(
+    request: Request,
+    datos: CambioContrasena,
+    usuario: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Change the authenticated user's password (UCE-SEG-08, pasos 4-8).
+
+    Field rejections are ``400`` with ``campo`` — a wrong current password is
+    field validation over a valid session, not an authentication failure, so
+    it never emits the OAuth2 challenge.
+    """
+    try:
+        if not verify_password(datos.contrasena_actual, usuario.contrasena_hash):
+            raise ReglaDeUsuario(
+                "La contraseña actual es incorrecta", "contrasena_actual"
+            )
+        validar_contrasena(datos.contrasena_nueva, campo="contrasena_nueva")
+    except ReglaDeUsuario as regla:
+        return _rechazo_campo(regla)
+
+    usuario.contrasena_hash = hash_password(datos.contrasena_nueva)
+    registrar_auditoria(
+        db,
+        usuario_id=usuario.id,
+        modulo="seguridad",
+        accion=AccionAuditoria.MODIFICAR,
+        entidad_afectada="usuario",
+        entidad_id=usuario.id,
+        direccion_ip=client_ip(request),
+        # The field name documents what changed; the invariant forbids storing
+        # the hash, so both values stay ``None`` (``AGENTS.md``, "Security
+        # invariants").
+        cambios=[("contrasena_hash", None, None)],
+    )
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
