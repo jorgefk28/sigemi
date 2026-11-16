@@ -124,6 +124,7 @@ class AccionAuditoria(StrEnum):
     ELIMINAR = "eliminar"
     CONSULTAR = "consultar"
     ACCEDER = "acceder"
+    BLOQUEAR = "bloquear"
 
 
 class FormatoArchivo(StrEnum):

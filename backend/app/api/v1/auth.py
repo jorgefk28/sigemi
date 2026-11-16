@@ -70,7 +70,7 @@ def login(
                 db,
                 usuario_id=usuario.id,
                 modulo="seguridad",
-                accion=AccionAuditoria.ACCEDER,
+                accion=AccionAuditoria.BLOQUEAR,
                 entidad_afectada="usuario",
                 entidad_id=usuario.id,
                 direccion_ip=client_ip(request),

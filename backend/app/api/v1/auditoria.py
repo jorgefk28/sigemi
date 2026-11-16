@@ -37,11 +37,17 @@ router = APIRouter(prefix="/auditoria", tags=["auditoria"])
 LIMITE_POR_DEFECTO = 20
 LIMITE_MAXIMO = 100
 
-#: Closed set the ``accion`` filter accepts (decision D6 of ``## Screens``).
-#: A value stored in the table but absent here — such as ``acceder``, written by
-#: the login flow — is not offered by the filter and still shows up in the
-#: unfiltered listing, exactly as D6 prescribes.
-ACCIONES_FILTRABLES = ("crear", "modificar", "eliminar", "consultar")
+#: Closed ``accion`` catalog (level 3): the filter offers all six values, and
+#: any other is rejected with ``400``. ``acceder`` is a successful login and
+#: ``bloquear`` a lockout by failed attempts — two distinct events (L24).
+ACCIONES_FILTRABLES = (
+    "crear",
+    "modificar",
+    "eliminar",
+    "consultar",
+    "acceder",
+    "bloquear",
+)
 
 #: Never echoed, even if a row ever records one (SEG-U05 rule).
 CAMPOS_OCULTOS = frozenset({"contrasena_hash", "contrasena"})
@@ -133,7 +139,8 @@ def listar_eventos(
     if accion is not None and accion not in ACCIONES_FILTRABLES:
         return _rechazo(
             "accion",
-            "El tipo de acción debe ser crear, modificar, eliminar o consultar",
+            "El tipo de acción debe ser crear, modificar, eliminar, "
+            "consultar, acceder o bloquear",
         )
     if (
         fecha_desde is not None

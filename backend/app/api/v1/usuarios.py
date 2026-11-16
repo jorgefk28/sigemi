@@ -13,6 +13,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import client_ip, require_roles
@@ -39,6 +40,7 @@ from app.services.usuarios import (
     normalizar_texto,
     resolver_roles,
     validar_contrasena,
+    validar_correo,
     validar_estado,
 )
 
@@ -191,6 +193,7 @@ def crear_usuario(
         correo = normalizar_texto(
             "correo_electronico", "El correo electrónico", datos.correo_electronico
         ).lower()
+        validar_correo(correo)
     except ReglaDeUsuario as regla:
         return _rechazo(regla)
 
@@ -210,7 +213,20 @@ def crear_usuario(
         estado=EstadoActivo.ACTIVO.value,
     )
     db.add(usuario)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError:
+        # The pre-check and the INSERT are not atomic: two simultaneous altas
+        # with the same e-mail both pass the SELECT and the loser hits the
+        # unique index here. Translate that collision to the field-scoped 400
+        # the contract prescribes instead of leaking a 500.
+        db.rollback()
+        return _rechazo(
+            ReglaDeUsuario(
+                "Ya existe un usuario con ese correo electrónico",
+                "correo_electronico",
+            )
+        )
     asignar_roles(db, usuario.id, roles)
 
     registrar_auditoria(
@@ -279,6 +295,7 @@ def actualizar_usuario(
                 "El correo electrónico",
                 enviados["correo_electronico"],
             ).lower()
+            validar_correo(correo)
             if _correo_en_uso(db, correo, excluir=usuario.id):
                 raise ReglaDeUsuario(
                     "Ya existe un usuario con ese correo electrónico",
@@ -333,7 +350,13 @@ def reemplazar_roles(
     if anteriores == nuevos:
         return serializar_usuario(db, usuario)
 
-    asignar_roles(db, usuario.id, roles)
+    try:
+        asignar_roles(db, usuario.id, roles)
+    except IntegrityError:
+        # Two simultaneous replacements can collide on the PK of ``usuario_rol``.
+        # Translate the collision to the field-scoped 400 instead of a 500.
+        db.rollback()
+        return _rechazo(ReglaDeUsuario("No se pudieron asignar los roles", "roles"))
     registrar_auditoria(
         db,
         usuario_id=actor.id,
