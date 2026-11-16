@@ -15,6 +15,19 @@ class Token(BaseModel):
     expires_in: int = Field(description="Token lifetime in seconds")
 
 
+class CambioContrasena(BaseModel):
+    """Payload of the password change (UCE-SEG-08, pasos 2-3).
+
+    No bounds live here. Both checks — current password and the S6 strength
+    rule — are business validation and must answer ``400`` with ``campo``;
+    a schema bound would pre-empt them with the automatic ``422`` instead
+    (``AGENTS.md``, "Response contract").
+    """
+
+    contrasena_actual: str
+    contrasena_nueva: str
+
+
 class TokenPayload(BaseModel):
     """Decoded JWT payload."""
 

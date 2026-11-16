@@ -35,34 +35,38 @@ class ReglaDeUsuario(Exception):
         self.campo = campo
 
 
-def validar_contrasena(contrasena: str) -> None:
+def validar_contrasena(contrasena: str, campo: str = "contrasena") -> None:
     """Enforce the strength rule declared in S6.
 
     Checks run in a fixed order so the reported rule is deterministic: minimum
     length, UTF-8 byte ceiling, at least one letter, at least one digit.
+
+    ``campo`` names the request field the rejection belongs to: the alta keeps
+    the default ``"contrasena"`` and the password change passes
+    ``"contrasena_nueva"`` so the SPA places the message on the right field.
     """
     if len(contrasena) < MIN_PASSWORD_CHARS:
         raise ReglaDeUsuario(
             f"La contraseña debe tener al menos {MIN_PASSWORD_CHARS} caracteres",
-            "contrasena",
+            campo,
         )
 
     if len(contrasena.encode("utf-8")) > MAX_PASSWORD_BYTES:
         raise ReglaDeUsuario(
             f"La contraseña no puede superar los {MAX_PASSWORD_BYTES} bytes",
-            "contrasena",
+            campo,
         )
 
     if not any(caracter.isalpha() for caracter in contrasena):
         raise ReglaDeUsuario(
             "La contraseña debe incluir al menos una letra",
-            "contrasena",
+            campo,
         )
 
     if not any(caracter.isdigit() for caracter in contrasena):
         raise ReglaDeUsuario(
             "La contraseña debe incluir al menos un dígito",
-            "contrasena",
+            campo,
         )
 
 
