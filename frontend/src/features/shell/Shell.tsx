@@ -4,6 +4,7 @@ import { Sidebar } from '../../components/Sidebar';
 import { useAuth } from '../../session/auth';
 import { DashboardPage } from '../dashboard/DashboardPage';
 import { PlaceholderPage } from '../placeholder/PlaceholderPage';
+import { AuditoriaPage } from '../seguridad/AuditoriaPage';
 import { UsuariosPage } from '../seguridad/UsuariosPage';
 import {
   DEFAULT_PAGE_ID,
@@ -60,6 +61,8 @@ export function Shell() {
         <DashboardPage />
       ) : activePage.id === 'usuarios' ? (
         <UsuariosPage onForbidden={goHome} />
+      ) : activePage.id === 'auditoria' ? (
+        <AuditoriaPage onForbidden={goHome} />
       ) : (
         <PlaceholderPage title={activePage.title} />
       )}
