@@ -127,7 +127,7 @@ gobierne), G15 (falta el patrón de calendario).
 | ID | Tarea | Specs | Ruta | Estado |
 |---|---|---|---|---|
 | T1 | Enmienda del nivel 2/3 para REC: `lista_espera`, `turno.tipo_analisis_id` / `serie_id` / `motivo_inasistencia`, `profesional_id` y `espacio_id` nullable, `indicacion_medica.tipo_analisis_id` obligatorio, obligatoriedad de `paciente` | S11 | inline (integrador) | ✅ (L2) |
-| T2 | Migración aditiva + modelos SQLAlchemy de la enmienda, con test de fidelidad contra el nivel 3 | S11 | — | ⏳ |
+| T2 | Migración aditiva + modelos SQLAlchemy de la enmienda, con test de fidelidad contra el nivel 3 | S11 | delegated | ✅ (L3, integrada en `580232f`) |
 | T3 | Diseño paso 3: especificación de las 11 pantallas con la plantilla del plan | S1-S10 | — | ⏳ |
 | T4 | Backend REC: pacientes, agenda, turnos, lista de espera, asistencia | S5-S9 | — | ⏳ |
 | T5 | Pantallas REC: P1 (REC-U06) y P3 (REC-U05) primero, después las demás instancias | S1-S10 | — | ⏳ |
@@ -199,3 +199,60 @@ ya tenía cambios propios del dueño sin commitear. No se commitean desde acá: 
 autores en un mismo commit oculta quién decidió qué.
 
 **Próximo paso**: T2, migración aditiva y modelos, con test de fidelidad contra el nivel 3.
+
+### L3 — T2: migración y modelos de la enmienda (2026-11-16)
+
+**Carril**: rama `feat/rec-t2-esquema`, worktree `C:\work\sigemi-rec-t2`, base de datos
+propia `sigemi_rec2`. Merge en `main`: `580232f`.
+
+**Revisión Alembic creada**: `d4e2a91f7b30` (`rec amendment: lista_espera and
+nullability`), encadenada a `c1bf7c1dd493`. Las dos revisiones ya aplicadas quedaron
+intactas: el historial no se reescribió.
+
+**Qué materializó**: `lista_espera` con sus dos índices y sus tres FK; `turno` con
+`tipo_analisis_id` (FK), `serie_id` (uuid sin FK) y `motivo_inasistencia`, y con
+`profesional_id` y `espacio_id` opcionales; `indicacion_medica.tipo_analisis_id`
+obligatorio; y las nueve columnas obligatorias de `paciente`.
+
+**Decisión de diseño de la migración**: cada `SET NOT NULL` va precedido por una cuenta
+de filas con NULL y aborta nombrando `tabla.columna` y la cantidad. Un `ALTER` que falla a
+mitad de la migración deja el esquema en un estado que nadie declaró, y el error nativo de
+PostgreSQL no dice cuántas filas ni cuál columna. El `downgrade` aplica el mismo guard al
+restaurar `NOT NULL` sobre `turno`, porque el esquema nuevo permite filas que el viejo
+rechazaba.
+
+**Corrección del integrador sobre el trabajo del carril**: `ListaEspera.estado` se había
+escrito con el literal `"pendiente"`, porque `app/models/enums.py` estaba fuera de la
+superficie de edición del worker. El resto de los estados del modelo son `StrEnum` de ese
+archivo (`TurnoEstado`, `EstadoIndicacion`, `OfertaEstado`), así que se agregó
+`ListaEsperaEstado` (`pendiente` / `asignado` / `retirado`) y el modelo lo usa. Un conjunto
+cerrado escrito como literal se desincroniza en cuanto alguien escribe el segundo valor a
+mano.
+
+**Evidencia observada sobre `main`, con la base creada desde cero**
+
+- `alembic upgrade head` sobre una base vacía → `8f5956edf3e4` → `c1bf7c1dd493` →
+  `d4e2a91f7b30`, `current` = `d4e2a91f7b30 (head)`. La cadena completa aplica desde cero.
+- `pytest` completo → **397 passed, 1 warning in 112.66 s**, exit 0 (baseline `00fabec`:
+  378).
+- `ruff check .` → `All checks passed!`; `ruff format --check .` → `51 files already
+  formatted`.
+- En el carril: `alembic downgrade -1` y vuelta a `upgrade head` sin error, y el snapshot
+  de esquema antes y después del ida y vuelta es idéntico por hash.
+
+**RED/GREEN del carril**: RED de 19 fallos (`KeyError: lista_espera`, columnas faltantes en
+`turno`, migración inexistente); GREEN de los mismos archivos, 293 passed. Suite del
+carril: 396 (378 + 18 tests nuevos), más 1 test del integrador para el enum → 397.
+
+**Limitaciones registradas, no corregidas**
+
+- El modo offline de Alembic (`upgrade --sql`) quedaría roto por el guard, que necesita una
+  conexión real. `env.py` lo soporta y nadie lo usa en el repositorio.
+- El test del guard siembra la fila bloqueante dentro de una transacción con rollback en
+  lugar de re-ejecutar `upgrade()` completo, porque la revisión ya está aplicada a la base
+  del carril. El cableado dentro de `upgrade()` queda cubierto por el ida y vuelta y por el
+  test de completitud de `NOT_NULL_TARGETS`.
+
+**Próximo paso**: T3, especificación de las 11 pantallas (paso 3 del plan de diseño). Antes
+hay que decidir G15: el patrón de calendario que REC-U01 necesita y los seis patrones
+actuales no cubren.
