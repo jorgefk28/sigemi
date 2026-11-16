@@ -18,8 +18,10 @@ from app.models import (
     reports,
     waste,
 )
+from app.models.agenda import ListaEspera
 
 __all__ = [
+    "ListaEspera",
     "access",
     "agenda",
     "audit",
