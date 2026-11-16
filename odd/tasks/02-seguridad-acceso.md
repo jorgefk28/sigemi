@@ -1312,3 +1312,17 @@ Ningún carril editó `## Specs`, `## Screens`, `## Tasks` ni `## Log`: el integ
 **Higiene**: el probe diferencial del carril de T6 dejó un worktree temporal fuera del repositorio, ya eliminado. `.atl/skill-registry.md` (G6) sigue modificado y sin commitear; no se tocó.
 
 **Próximo paso**: SEG-U08 y SEG-U09 esperan D3; SEG-U06/U07 esperan D5 y la aprobación de SMTP; T8 tiene un ítem desbloqueado (`POST /api/v1/auth/password`). Fuera de SEG, los cuatro subsistemas restantes (REC, DIAG, LAB, REP) están al 0 % y necesitan feature doc y diseño antes de implementarse.
+
+### L26 — Review nativo del candidato T6/T9/SEG-U04/SEG-U05: no concluido (2026-11-16)
+
+**Assess**: `gentle-ai review assess --cwd . --agent opencode --base-ref 9b46b60 --committed-only --json` → `risk: high` (`hot_path`, señal `auth`, `backend/app/api/v1/auth.py`), `changed_paths: 16`, `changed_lines: 1539`, `review_due: true` (`high_risk`).
+
+**START**: `review-23ba1c821cda37f8`, `action: created`, `state: reviewing`, lentes `review-risk`, `review-resilience`, `review-reliability` (razón: T6 traduce las carreras y valida el formato del correo; T9 cambia la acción auditada del bloqueo y el catálogo del filtro; SEG-U04/U05 agregan dos pantallas de sólo lectura). `correction_budget: 200`. Consentimiento declarado `granted` en el START, según la preferencia del dueño registrada en `AGENTS.md`.
+
+**Resultado de las tres lentes**: `review-resilience` y `review-reliability` fueron **admitidas** (`admission_decision: completed`). `review-risk` fue **refusada** por el transporte: `opencode_review_transport_relay_refused (reason: output_refused, cause: reviewer_result_not_admissible)`.
+
+**Bloqueo**: la reanudación quedó imposible. `review.status --next-transition=true` con el `repository-context` de la transacción responde `gentle-ai.review-integration.failure/v2`, `phase: pre_native`, `code: operation_timeout` («exceeded its aggregate time budget»), en **tres intentos** (7,5 s el `status` simple contra 26 s el negociado). No se reintenta más: reintentar sin límite está prohibido y no hay transición que reofrezca el slot de `review-risk`.
+
+**Estado que deja**: la transacción queda en `reviewing`, 2 de 3 lentes admitidas, sin corrección y sin acknowledgement. No se ejecutó `abandon` ni `invalidate`: la decisión de liberar la autoridad es del dueño. **No hay veredicto de review sobre este candidato**, y no se infiere uno.
+
+**Consecuencia sobre el trabajo**: ninguna sobre el código. El candidato está commiteado y verificado en `main` (`689deb4`) con los gates observados en L25. El review nativo es una vista externa adicional; la entrega sigue la política ordinaria del repositorio.
