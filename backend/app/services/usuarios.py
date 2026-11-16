@@ -10,6 +10,7 @@ belongs to a request field, the ``campo`` it should be attached to
 
 from __future__ import annotations
 
+import re
 import uuid
 from collections.abc import Iterable
 
@@ -77,6 +78,22 @@ def normalizar_texto(campo: str, etiqueta: str, valor: str) -> str:
     if not normalizado:
         raise ReglaDeUsuario(f"{etiqueta} no puede estar vacío", campo)
     return normalizado
+
+
+#: Minimal, dependency-free shape check for ``correo_electronico``. The
+#: response contract forbids ``EmailStr`` (it would pre-empt the business
+#: ``400`` with the automatic ``422``), so the format rule lives here next to
+#: ``normalizar_texto`` and answers ``400`` + ``campo``.
+PATRON_CORREO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def validar_correo(correo: str) -> None:
+    """Reject an e-mail without a valid shape (UCE-SEG-02, excepción paso 6)."""
+    if PATRON_CORREO.fullmatch(correo) is None:
+        raise ReglaDeUsuario(
+            "El correo electrónico no tiene un formato válido",
+            "correo_electronico",
+        )
 
 
 def resolver_roles(db: Session, codigos: Iterable[str]) -> list[Rol]:

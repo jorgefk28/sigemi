@@ -718,3 +718,129 @@ def test_list_escapes_like_wildcards_literally(
     ids = [item["id"] for item in response.json()["items"]]
     assert str(con_guion_bajo.id) in ids
     assert str(sin_guion_bajo.id) not in ids
+
+
+# ---------------------------------------------------------------------------
+# T6: formato del correo y carreras de unicidad traducidas a 400
+# ---------------------------------------------------------------------------
+
+
+def test_create_invalid_email_format_is_rejected_with_field(
+    client: TestClient, db: Session, usuario_factory
+):
+    """The e-mail shape is business validation: 400 + campo, never a ``422``."""
+    token, _ = _admin_token(client, usuario_factory)
+
+    response = client.post(
+        USUARIOS_URL,
+        json={
+            "nombre": "Ana",
+            "apellido": "Perez",
+            "correo_electronico": "no-es-un-correo",
+            "contrasena": "Secreta123",
+            "roles": ["profesor"],
+        },
+        headers=_headers(token),
+    )
+
+    assert response.status_code == 400, response.text
+    assert response.json() == {
+        "detail": "El correo electrónico no tiene un formato válido",
+        "campo": "correo_electronico",
+    }
+    assert db.query(Usuario).count() == 1
+
+
+def test_update_invalid_email_format_is_rejected_with_field(
+    client: TestClient, db: Session, usuario_factory
+):
+    """The same format rule applies on modification."""
+    token, _ = _admin_token(client, usuario_factory)
+    usuario = usuario_factory(correo="beto@sigemi.test")
+
+    response = client.patch(
+        f"{USUARIOS_URL}/{usuario.id}",
+        json={"correo_electronico": "no-es-un-correo"},
+        headers=_headers(token),
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "El correo electrónico no tiene un formato válido",
+        "campo": "correo_electronico",
+    }
+    db.refresh(usuario)
+    assert usuario.correo_electronico == "beto@sigemi.test"
+
+
+def test_create_email_race_is_translated_to_400(
+    client: TestClient, db: Session, usuario_factory, monkeypatch
+):
+    """An INSERT colliding with the unique index answers 400, never a 500."""
+    import app.api.v1.usuarios as usuarios_module
+
+    token, _ = _admin_token(client, usuario_factory)
+
+    # Skip the pre-check to reopen the TOCTOU window: the SELECT says "free"
+    # and the INSERT below collides with the already-seeded row.
+    monkeypatch.setattr(
+        usuarios_module,
+        "_correo_en_uso",
+        lambda db, correo, excluir=None: False,
+    )
+    usuario_factory(correo="ana@sigemi.test", roles=("profesor",))
+    db.commit()
+
+    response = client.post(
+        USUARIOS_URL,
+        json={
+            "nombre": "Ana",
+            "apellido": "Perez",
+            "correo_electronico": "ana@sigemi.test",
+            "contrasena": "Secreta123",
+            "roles": ["profesor"],
+        },
+        headers=_headers(token),
+    )
+
+    assert response.status_code == 400, response.text
+    assert response.json() == {
+        "detail": "Ya existe un usuario con ese correo electrónico",
+        "campo": "correo_electronico",
+    }
+    # Admin plus the seeded row remain; the raced insert left nothing behind.
+    assert db.query(Usuario).count() == 2
+
+
+def test_replace_roles_race_is_translated_to_400(
+    client: TestClient, db: Session, usuario_factory, monkeypatch
+):
+    """A role-set INSERT colliding with its PK answers 400 with ``campo``."""
+    from sqlalchemy.exc import IntegrityError
+
+    import app.api.v1.usuarios as usuarios_module
+
+    token, _ = _admin_token(client, usuario_factory)
+    usuario = usuario_factory(correo="beto@sigemi.test", roles=("bioquimico",))
+    db.commit()
+
+    def _colision(db, usuario_id, roles):
+        raise IntegrityError(
+            "INSERT INTO usuario_rol ...", None, Exception("duplicate key")
+        )
+
+    monkeypatch.setattr(usuarios_module, "asignar_roles", _colision)
+
+    response = client.put(
+        f"{USUARIOS_URL}/{usuario.id}/roles",
+        json={"roles": ["profesor"]},
+        headers=_headers(token),
+    )
+
+    assert response.status_code == 400, response.text
+    assert response.json() == {
+        "detail": "No se pudieron asignar los roles",
+        "campo": "roles",
+    }
+    filas = db.query(UsuarioRol).filter_by(usuario_id=usuario.id).all()
+    assert len(filas) == 1
