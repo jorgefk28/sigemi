@@ -28,7 +28,7 @@ El paso 1 **no inventa pantallas**. Si un UCE no nombra una pantalla, no hay pan
 Si una pantalla "hace falta" pero ningún UCE la respalda, es un requisito faltante:
 se reporta, no se diseña.
 
-## 3. Los seis patrones
+## 3. Los siete patrones
 
 | Código | Patrón | Cuándo |
 |---|---|---|
@@ -38,6 +38,19 @@ se reporta, no se diseña.
 | P4 | Flujo multi-paso con estado persistido | El UCE describe estados sucesivos (muestra → ejecución → validación) |
 | P5 | Panel de KPIs | "Resumen", "panel", "indicadores" |
 | P6 | Catálogo simple (tabla + alta/edición en línea) | Tablas de catálogo del nivel 3 |
+| P7 | Grilla temporal con vistas diaria, semanal y mensual | El UCE pide "la grilla de turnos" o "el calendario mensual" |
+
+**P7 — por qué existe (decisión del 2026-11-16, al derivar REC).** La primera pantalla
+del sistema que no encajaba en ningún patrón fue `REC-U01 Gestión de Agenda`: siete UCE
+pasan por ella y su unidad de presentación es un **bloque de tiempo**, no una fila. Forzarla
+dentro de P1 habría producido una tabla ordenada por fecha que no responde la pregunta que
+la pantalla existe para responder —«qué hay libre y qué está ocupado»—, y el bloqueo de
+franjas (UCE–REC-08) no se puede expresar sobre una fila. P7 comparte con P1 los datos y las
+acciones por bloque, y cambia el eje: el tiempo manda, la fila no.
+
+Se agrega en vez de partir la pantalla en dos porque las vistas diaria, semanal y mensual
+son la misma pantalla con distinto zoom: son un control de la pantalla, no dos pantallas.
+
 
 Una pantalla que no encaja en ningún patrón es señal de alarma: o son dos pantallas,
 o el patrón falta. En ese caso se decide explícitamente y se anota la justificación,

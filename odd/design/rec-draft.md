@@ -115,7 +115,7 @@ resumen, de un conteo ni de un artefacto previo: todas salen de un paso que la n
 
 | Pantalla | Nombre | Patrón | UCE que cubre | Actor que entra |
 |---|---|---|---|---|
-| **REC-U01** | Gestión de Agenda (grilla de turnos) | no encaja (§5 G15) | REC-06 (1-4), REC-08 (1-8), REC-27 (1-8), REC-15 (1-3), REC-20 (1), REC-21 (1-4), REC-22 (1-3) | Bioquímico/Doctor o Administrador; el bloqueo/desbloqueo sólo Administrador |
+| **REC-U01** | Gestión de Agenda (grilla de turnos) | **P7** (resuelto, §5 G15) | REC-06 (1-4), REC-08 (1-8), REC-27 (1-8), REC-15 (1-3), REC-20 (1), REC-21 (1-4), REC-22 (1-3) | Bioquímico/Doctor o Administrador; el bloqueo/desbloqueo sólo Administrador |
 | **REC-U02** | Alta de turno manual | P3 | REC-20 (2-12) | Bioquímico/Doctor o Administrador |
 | **REC-U03** | Alta de serie de turnos | P3 | REC-24 (1-8) | Bioquímico/Doctor o Administrador |
 | **REC-U04** | Reprogramar turno | P3 | REC-22 (4-13) | Bioquímico/Doctor o Administrador |
@@ -128,7 +128,7 @@ resumen, de un conteo ni de un artefacto previo: todas salen de un paso que la n
 | **REC-U11** | Lista de espera | P1 | REC-29 (1-4), REC-28 (1-7) | Administrador |
 
 **Reparto por patrón**: P3 ×6 (U02, U03, U04, U05, U08, U10) · P1 ×3 (U06, U09, U11) ·
-P2 ×1 (U07) · sin patrón ×1 (U01). **P4, P5 y P6 no aparecen en REC.**
+P2 ×1 (U07) · P7 ×1 (U01). **P4, P5 y P6 no aparecen en REC.**
 
 ### 3.1 Decisiones de clasificación, con su justificación
 
@@ -226,7 +226,7 @@ aquí; se reportan.
 
 | # | Hueco | Justificación |
 |---|---|---|
-| **G15** | **Falta el patrón «calendario / grilla temporal».** REC-U01 es la pantalla más cargada del subsistema (7 UCE) y no encaja en P1: su unidad de presentación es un bloque de tiempo con vistas diaria, semanal y mensual, no una fila de tabla. El plan §3 anticipa este caso («o el patrón falta») y manda decidirlo explícitamente. | REC-06 paso 3, REC-08 paso 2 |
+| **G15** | **Falta el patrón «calendario / grilla temporal».** REC-U01 es la pantalla más cargada del subsistema (7 UCE) y no encaja en P1: su unidad de presentación es un bloque de tiempo con vistas diaria, semanal y mensual, no una fila de tabla. El plan §3 anticipa este caso («o el patrón falta») y manda decidirlo explícitamente. **Resuelto el 2026-11-16: ver §7.** | REC-06 paso 3, REC-08 paso 2 |
 
 ### 5.5 Observación menor (no bloquea)
 
@@ -269,3 +269,20 @@ el resto. Para REC el orden es:
 **Orden sugerido de instanciación después de los patrones**: U09 (P1, ya probado con
 U06) → U08 (P3, ya probado con U05) → U10 (P3) → U02 y U04 (P3) → U03 (P3 con grupo
 repetible, la única que agrega algo al patrón).
+
+---
+
+## 7. Resoluciones posteriores
+
+### R1 — G15: se agrega el patrón P7 «grilla temporal» (2026-11-16)
+
+`odd/design/screen-design-plan.md` §3 pasa de seis a siete patrones. **REC-U01 Gestión de
+Agenda** se especifica como **P7**, no como P1 ni como dos pantallas.
+
+- **Por qué un patrón nuevo y no P1**: la unidad de REC-U01 es un bloque de tiempo. Una
+  tabla ordenada por fecha no responde la pregunta que la pantalla existe para responder
+  («qué hay libre y qué está ocupado») y no puede expresar el bloqueo de una franja
+  (UCE–REC-08), que es un rango sobre el eje temporal, no una fila.
+- **Por qué no dos pantallas**: las vistas diaria, semanal y mensual son la misma pantalla
+  con distinto zoom. Son un control, no dos pantallas distintas.
+- **Qué comparte con P1**: los datos y las acciones por bloque. **Qué cambia**: el eje.
