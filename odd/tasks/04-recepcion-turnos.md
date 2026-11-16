@@ -98,27 +98,230 @@ Inventario derivado en `odd/design/rec-draft.md` (pasos 0-2): **28 UCE**, de los
 **19 generan pantalla** y **9 no** (6 son WhatsApp puro, 2 automáticos, 1 sin secuencia
 derivable). Resultado: **11 pantallas únicas**.
 
-| Pantalla | Patrón | UCE |
+Inventario definitivo, fusionado desde `odd/design/rec-draft.md` §3 (pasos 0-2). Corrige
+el reparto previo de la tabla: **REC-U04 es reprogramar turno**, y la asistencia
+(REC-15) no es pantalla propia — es un diálogo dentro de REC-U01 más el modo «completar»
+de REC-U05.
+
+| Pantalla | Nombre | Patrón | UCE que cubre |
+|---|---|---|---|
+| **REC-U01** | Gestión de Agenda (grilla de turnos) | P7 | 06, 08, 27, 15 (1-3), 20 (1), 21 (1-4), 22 (1-3) |
+| **REC-U02** | Alta de turno manual | P3 | 20 (2-12) |
+| **REC-U03** | Alta de serie de turnos | P3 | 24 (1-8) |
+| **REC-U04** | Reprogramar turno | P3 | 22 (4-13) |
+| **REC-U05** | Formulario de paciente (alta/edición) | P3 | 16 (2-6), 17 (6-11), 15 (6) |
+| **REC-U06** | Listado de pacientes | P1 | 18 (1-5), 17 (1-5), 19 (1-4), S-01 (4b) |
+| **REC-U07** | Detalle de paciente | P2 | 18 (6), 19 (5-11) |
+| **REC-U08** | Formulario de indicación médica | P3 | 10 (2-7), 11 (2-5) |
+| **REC-U09** | Listado de indicaciones médicas | P1 | 13 (1-4), 12 (1-6), 11 (1), 10 (1) |
+| **REC-U10** | Configuración de agenda | P3 | 07 (1-9) |
+| **REC-U11** | Lista de espera | P1 | 29 (1-4), 28 (1-7) |
+
+**Orden de especificación** (plan §9: primero las dos pantallas que fijan patrón):
+REC-U06 (P1) y REC-U05 (P3), después REC-U07 (P2). `## Screens` se completa por
+iteración; **ninguna pantalla se implementa sin su especificación aprobada** (paso 4).
+
+**Pantallas cuya especificación no se puede cerrar todavía**:
+
+| Pantalla | Bloqueo |
+|---|---|
+| REC-U01 Gestión de Agenda | G10 (solapamiento `periodo_inhabilitado` / `bloqueo_agenda`), G11-G12 (columnas y tablas de agenda sin UCE que las gobierne) |
+| REC-U10 Configuración de agenda | G10: no está decidido qué escribe `configuracion_agenda` y qué `periodo_inhabilitado` |
+| REC-U11 Lista de espera | G8: la vía manual de REC-23 no tiene secuencia; sólo se especifica consultar y quitar |
+| REC-U02, U03, U04 | dependen de `configuracion_agenda` (REC-U10) para calcular disponibilidad |
+
+### Paso 3 — especificaciones
+
+#### REC-U06 · Listado de pacientes
+
+- **Patrón**: P1
+- **Respaldo**: UCE-REC-18 pasos 1-5 (L1369-1380); UCE-REC-17 pasos 1-5 (L1346-1350);
+  UCE-REC-19 pasos 1-4 (L1400-1403); UCE-REC-S-01 paso 4b (L1613); RF-05
+- **Actor y permiso**: Bioquímico/Doctor o Administrador (precondición de REC-18, L1374).
+  Backend: `require_roles("bioquimico", "administrador")`
+- **Ruta y entrada**: Sidebar → Pacientes. Es además el «Buscar Paciente» de REC-17 y
+  REC-19 (S-01), no una pantalla aparte.
+- **Zonas**: header con breadcrumb y acción «Nuevo Paciente»; barra de filtros; tabla;
+  paginación.
+
+**Datos** (nombre exacto del nivel 3). Toda columna es un campo que el nivel 1 nombra: los
+del formulario de REC-16 paso 2 o los del filtro de REC-18 paso 3.
+
+| Columna | Campo | Origen |
 |---|---|---|
-| REC-U01 Gestión de Agenda | **sin patrón** (hueco G15) | 06, 07, 08, 27 |
-| REC-U02 Nuevo Turno | P3 | 20 |
-| REC-U03 Turno Seriado | P3 | 24 |
-| REC-U04 Indicaciones Médicas | P1 + P3 | 10, 11, 12, 13 |
-| REC-U05 Formulario de Paciente | P3 | 16, 17, 15 |
-| REC-U06 Listado de Pacientes | P1 | 18, S-01 |
-| REC-U07 Detalle de Paciente | P2 | 18 |
-| REC-U08 Lista de Espera | P1 | 29, 28 |
-| REC-U09 Configuración de Agenda | P3 | 07 |
-| REC-U10 Registro de Asistencia | P3 | 15 |
-| REC-U11 Baja de Paciente | P3 | 19 |
+| DNI | `dni` | `paciente` (REC-16 paso 2) |
+| Apellido y nombre | `apellido` + `nombre` | `paciente` (REC-16 paso 2) |
+| Fecha de nacimiento | `fecha_nacimiento` | `paciente` (REC-16 paso 2) |
+| Teléfono | `telefono` | `paciente` (REC-16 paso 2) |
+| Estado | `estado` (Activo / Inactivo) | `paciente` (REC-18 paso 3) |
 
-**Pendiente el paso 3**: la especificación completa de cada pantalla con la plantilla de
-`odd/design/screen-design-plan.md` §4. Ninguna pantalla se implementa sin esa
-especificación aprobada (paso 4).
+**Filtros**
 
-Huecos abiertos que afectan pantallas: G8 (REC-23 sin secuencia manual), G10 (solapamiento
-`periodo_inhabilitado` / `bloqueo_agenda`), G11 y G12 (tablas de agenda sin UCE que las
-gobierne), G15 (falta el patrón de calendario).
+| Filtro | Parámetro | Origen |
+|---|---|---|
+| Búsqueda libre por DNI, nombre o apellido | `q` | S-01 paso 1 (L1609) |
+| DNI, coincidencia exacta | `dni` | REC-18 paso 3; S-01 comentarios (L1622) |
+| Nombre, coincidencia parcial | `nombre` | idem |
+| Apellido, coincidencia parcial | `apellido` | idem |
+| Estado | `estado` = `activo` \| `inactivo` | REC-18 paso 3 (L1378) |
+| Paginación | `limit` 20 por defecto, tope 100; `offset` | convención del repositorio |
+
+**Acciones**
+
+| Acción | Endpoint | Habilitada cuando | Efecto |
+|---|---|---|---|
+| Nuevo Paciente | `POST /api/v1/pacientes` (vía REC-U05) | siempre | abre REC-U05 en modo alta (REC-16 paso 1) |
+| Ver | `GET /api/v1/pacientes/{id}` | siempre | abre REC-U07 (REC-18 paso 5) |
+| Editar | `PATCH /api/v1/pacientes/{id}` (vía REC-U05) | siempre | abre REC-U05 en modo edición (REC-17 pasos 1-6) |
+
+**Estados**
+
+| Estado | Qué se muestra |
+|---|---|
+| Vacío | «No hay pacientes registrados» + acción Nuevo Paciente (REC-18 exc. paso 4) |
+| Sin coincidencias | «No se encontraron pacientes con los criterios ingresados» + Limpiar filtros (REC-18 exc. paso 4) |
+| Cargando | esqueleto de tabla, nunca números inventados |
+| Error | «No se pudieron cargar los pacientes» + Reintentar |
+| Una sola coincidencia | se resalta la fila y se ofrece el acceso al detalle; **no** navega sola (S-01 paso 4a devuelve el dato al UCE invocante, que acá es el listado) |
+| Sin permiso | redirección al inicio, no un 403 crudo (R2) |
+
+**Reglas y excepciones**
+
+| Regla | Clase | Origen | Dónde se aplica |
+|---|---|---|---|
+| Sólo Bioquímico/Doctor o Administrador | R2 | precondición REC-18 (L1374) | `require_roles` |
+| DNI coincide exacto; nombre y apellido, parciales | R3 | S-01 comentarios (L1622) | backend |
+| La edad se calcula al vuelo desde `fecha_nacimiento`, no se persiste | R4 | REC-18 comentarios (L1391) | UI |
+| El listado incluye inactivos; el filtro `estado` los separa | R3 | REC-18 paso 3 | backend |
+| «Edad» no es columna de la tabla | R4 | REC-18 paso 6 nombra «Datos Personales», no edad | UI |
+
+**Fuera de alcance**: la baja (vive en REC-U07, REC-19 pasos 4-5); el alta desde el Agente
+IA (REC-09, WhatsApp); `sexo` (hueco G13: ningún UCE lo pide).
+
+#### REC-U05 · Formulario de paciente (alta y edición)
+
+- **Patrón**: P3
+- **Respaldo**: UCE-REC-16 pasos 2-6 (L1323-1327); UCE-REC-17 pasos 6-11 (L1352-1356);
+  UCE-REC-15 paso 6 (L1295, modo «completar»); RF-05
+- **Actor y permiso**: Bioquímico/Doctor o Administrador. Backend:
+  `require_roles("bioquimico", "administrador")`
+- **Ruta y entrada**: REC-U06 → «Nuevo Paciente» (alta) o «Editar» (edición); REC-U07 →
+  «Editar»; REC-U01 → registrar asistencia con datos incompletos (REC-15 paso 6)
+- **Zonas**: header con título según modo; formulario de una columna; acciones Guardar /
+  Cancelar
+
+**Datos** (orden de REC-16 paso 2, L1323)
+
+| Campo | Columna | Obligatorio | Origen |
+|---|---|---|---|
+| DNI | `dni` | sí | REC-16 paso 2 |
+| Nombre | `nombre` | sí | REC-16 paso 2 |
+| Apellido | `apellido` | sí | REC-16 paso 2 |
+| Fecha de nacimiento | `fecha_nacimiento` | sí | REC-16 paso 2 |
+| Teléfono | `telefono` | sí | REC-16 paso 2 |
+| Correo electrónico | `correo_electronico` | no | REC-16 paso 2 + nivel 2 decisión 7 |
+| Dirección | `domicilio` | no | REC-16 paso 2 + nivel 2 decisión 7 |
+| Obra social | `obra_social` | no | REC-16 paso 2 + nivel 2 decisión 7 |
+
+Campos que la pantalla **no** pide porque el sistema los completa: `numero_registro`
+(lo genera la aplicación, nivel 2 decisión 7), `estado` = activo (REC-16 paso 5),
+`fecha_ingreso` (alta) y `nivel_registro` = `completo` (alta de back-office; `temprano` es
+sólo la vía del Agente IA, REC-09).
+
+**Acciones**
+
+| Acción | Endpoint | Habilitada cuando | Efecto |
+|---|---|---|---|
+| Guardar (alta) | `POST /api/v1/pacientes` | todos los obligatorios con valor | crea, vuelve a REC-U06 (REC-16 paso 6) |
+| Guardar cambios (edición) | `PATCH /api/v1/pacientes/{id}` | idem | actualiza, audita, vuelve a REC-U07 (REC-17 pasos 9-11) |
+| Cancelar | — | siempre | vuelve sin escribir |
+
+**Estados**
+
+| Estado | Qué se muestra |
+|---|---|
+| Error de campo | mensaje bajo el campo, tomado del `400` con `campo` (R3) |
+| DNI ya registrado (alta) | «El paciente ya se encuentra registrado» + acceso directo al existente en modo edición (REC-16 exc. paso 4) |
+| DNI de otro paciente (edición) | «El DNI ingresado ya corresponde a otro paciente» (REC-17 exc. paso 8) |
+| Guardando | botón deshabilitado, sin doble submit |
+| Error de red | mensaje de reintento, nunca «DNI duplicado» |
+| Fecha de nacimiento bloqueada | campo deshabilitado con la razón a la vista (REC-17 comentarios, L1367) |
+
+**Reglas y excepciones**
+
+| Regla | Clase | Origen | Dónde se aplica |
+|---|---|---|---|
+| DNI único | R1 | REC-16 paso 4 (L1325) | backend `400` + `campo="dni"` |
+| DNI de otro paciente al editar | R1 | REC-17 exc. paso 8 (L1360) | backend `400` + `campo="dni"` |
+| `fecha_nacimiento` no se modifica si el paciente tiene análisis | R1 | REC-17 comentarios (L1367) | backend `400` + `campo="fecha_nacimiento"` + campo deshabilitado |
+| Formato de DNI y de teléfono | R3 | REC-17 paso 8 (L1353) | backend `400` + `campo` |
+| Correo con formato de buzón, cuando viene | R3 | REC-17 paso 8 | backend `400` + `campo="correo_electronico"` |
+| Un error de base de datos aborta sin datos parciales | R1 | REC-16 exc. paso 5 (L1331) | backend: una transacción |
+| El alta no audita; la edición sí | R1 | REC-17 paso 11 vs. REC-16 (hueco G16) | backend |
+
+**Fuera de alcance**: `sexo` (hueco G13: ningún UCE lo pide, no se agrega sin respaldo);
+`numero_registro` editable.
+
+#### REC-U07 · Detalle de paciente
+
+- **Patrón**: P2
+- **Respaldo**: UCE-REC-18 paso 6 (L1381); UCE-REC-19 pasos 4-11 (L1403-1410); RF-05
+- **Actor y permiso**: Bioquímico/Doctor o Administrador; «Desactivar» sólo Administrador
+  (precondición de REC-19, L1398). Backend: lectura con
+  `require_roles("bioquimico","administrador")`, baja con `require_roles("administrador")`
+- **Ruta y entrada**: REC-U06 → seleccionar una fila
+- **Zonas**: header con breadcrumb y acciones (Volver, Editar, Desactivar); ficha de datos
+  personales; historial de consultas; análisis micológicos; resultados
+
+**Datos**
+
+| Sección | Campos | Origen |
+|---|---|---|
+| Datos personales | los ocho campos del formulario + `estado` + `fecha_ingreso` | REC-18 paso 6 (L1381); `paciente` |
+| Historial de consultas | `ficha_clinica` (versión vigente y fecha) | REC-18 paso 6 |
+| Análisis micológicos | `analisis_micologico.estado` + `tipo_analisis` + fecha de la muestra | REC-18 paso 6 |
+| Resultados | `informe_resultados` | REC-18 paso 6 |
+
+**Acciones**
+
+| Acción | Endpoint | Habilitada cuando | Efecto |
+|---|---|---|---|
+| Volver | — | siempre | vuelve a REC-U06 **conservando filtros y página** (estado de vista, no ruta) |
+| Editar | abre REC-U05 en edición | siempre | navegación (REC-17 paso 6) |
+| Desactivar | `POST /api/v1/pacientes/{id}/baja` | rol `administrador` **y** `estado == activo` | abre el diálogo de motivo |
+
+**Diálogo de desactivación** (REC-19 pasos 6-7)
+
+| Campo | Obligatorio | Origen |
+|---|---|---|
+| Motivo | sí, texto libre | REC-19 paso 6 (L1405) |
+
+Botones Confirmar (deshabilitado sin motivo) y Cancelar. El motivo viaja en el cuerpo y se
+persiste en `cambio_auditoria` con `campo = "motivo_baja"` (nivel 2 decisión 9).
+
+**Estados**
+
+| Estado | Qué se muestra |
+|---|---|
+| Paciente inactivo | badge «Inactivo»; «Desactivar» oculto |
+| Sin análisis | «Sin análisis registrados» (nunca datos de ejemplo) |
+| Turnos vigentes al desactivar | `400` del backend con el mensaje; la pantalla informa el hecho (REC-19 exc. paso 8) |
+| Error | «No se pudo cargar el paciente» + Reintentar |
+| Sin permiso para desactivar | acción oculta (R2) |
+
+**Reglas y excepciones**
+
+| Regla | Clase | Origen | Dónde se aplica |
+|---|---|---|---|
+| Desactivar sólo Administrador | R2 | precondición REC-19 (L1398) | `require_roles("administrador")` |
+| Motivo obligatorio | R3 | REC-19 paso 6 | backend `400` + `campo="motivo"` + botón deshabilitado |
+| No se desactiva con turnos vigentes futuros | R1 | REC-19 paso 8 (L1407) | backend `400` |
+| La baja es lógica; el historial queda intacto | R1 | REC-19 comentarios (L1421) | backend |
+| El motivo va a la auditoría, no a una columna mutable | R1 | REC-19 paso 10 + nivel 2 decisión 9 | backend |
+| Volver conserva los filtros del listado | R4 | REC-17 pasos 1-5 | UI (estado de vista) |
+
+**Fuera de alcance**: iniciar la consulta (`UC–DIAG-01`, dependencia D4); listar los turnos
+vigentes del paciente en la excepción del paso 8 — requiere el endpoint de turnos (T4b).
 
 ---
 
@@ -128,13 +331,16 @@ gobierne), G15 (falta el patrón de calendario).
 |---|---|---|---|---|
 | T1 | Enmienda del nivel 2/3 para REC: `lista_espera`, `turno.tipo_analisis_id` / `serie_id` / `motivo_inasistencia`, `profesional_id` y `espacio_id` nullable, `indicacion_medica.tipo_analisis_id` obligatorio, obligatoriedad de `paciente` | S11 | inline (integrador) | ✅ (L2) |
 | T2 | Migración aditiva + modelos SQLAlchemy de la enmienda, con test de fidelidad contra el nivel 3 | S11 | delegated | ✅ (L3, integrada en `580232f`) |
-| T3 | Diseño paso 3: especificación de las 11 pantallas con la plantilla del plan | S1-S10 | — | ⏳ |
-| T4 | Backend REC: pacientes, agenda, turnos, lista de espera, asistencia | S5-S9 | — | ⏳ |
+| T3 | Diseño paso 3: especificación de las 11 pantallas con la plantilla del plan | S1-S10 | — | ⏳ (L4: REC-U05, U06 y U07 especificadas) |
+| T4a | Backend REC de pacientes y lista de espera: REC-16/17/18/19, S-01 y REC-28/29 | S5, S8 | delegated (carril `feat/rec-t4-pacientes`) | ✅ (L5, integrada en `f2076ea`) |
+| T4b | Backend REC de agenda, turnos y asistencia | S6, S7, S9 | — | ⏳ bloqueada por G10-G12 |
 | T5 | Pantallas REC: P1 (REC-U06) y P3 (REC-U05) primero, después las demás instancias | S1-S10 | — | ⏳ |
 | T6 | Integración con el Agente IA y WhatsApp: requiere decisión de proveedor | S1, S2, S3, S4 | — | ⛔ bloqueada |
 
 **Risk**: ítem 1 (cambio de esquema persistido) e ítem 3 (contrato que consumen los otros
-subsistemas). T1 no ejecuta DDL sobre datos: la migración es T2.
+subsistemas). T1 no ejecuta DDL sobre datos: la migración es T2. **T4a**: ítem 3 (contrato
+de API nuevo que van a consumir las pantallas REC-U05/U06/U07/U11); no toca esquema ni datos
+existentes.
 
 ---
 
@@ -256,3 +462,92 @@ carril: 396 (378 + 18 tests nuevos), más 1 test del integrador para el enum →
 **Próximo paso**: T3, especificación de las 11 pantallas (paso 3 del plan de diseño). Antes
 hay que decidir G15: el patrón de calendario que REC-U01 necesita y los seis patrones
 actuales no cubren.
+
+### L4 — T3: `## Screens` fusionada desde el borrador y tres pantallas especificadas (2026-11-16)
+
+**Pedido del dueño, textual**: «Revisa el estado de la sesión que escribía el subsistema
+REC, continúa su trabajo.»
+
+**Estado encontrado**: la sesión de REC había cerrado `68bcdfa` (evidencia de T2) y
+`133f393` (patrón P7 en el plan + REC-U01 clasificada) y se detuvo antes del paso 3. El
+inventario de `## Screens` había quedado **desactualizado respecto de
+`odd/design/rec-draft.md` §3**: decía REC-U04 = indicaciones médicas, REC-U08 = lista de
+espera, REC-U11 = baja de paciente, y daba a la asistencia (REC-15) pantalla propia.
+
+**Qué se corrigió en `## Screens`**
+
+1. La tabla se reemplazó por la de `rec-draft.md` §3, que es la derivación verificada:
+   REC-U04 es **reprogramar turno**; las indicaciones son **U08 (formulario) + U09
+   (listado)**; **U10** es configuración de agenda; **U11** es lista de espera; y la
+   asistencia (REC-15) no tiene pantalla propia — es un diálogo dentro de U01 más el modo
+   «completar» de U05.
+2. Se agregó la tabla de pantallas cuya especificación **no se puede cerrar todavía**, con
+   el hueco que la bloquea (G10-G12 para U01 y U10; G8 para el alta de U11; U02-U04 dependen
+   de U10 para calcular disponibilidad).
+3. Se especificaron las tres pantallas del primer patrón, en el orden que fija el plan §9:
+   **REC-U06 (P1)**, **REC-U05 (P3)** y **REC-U07 (P2)**.
+
+**Decisiones de especificación registradas** (las tres son R4, no cambian backend):
+
+| ID | Decisión | Por qué |
+|---|---|---|
+| A6 | En REC-U06, una búsqueda con una sola coincidencia resalta la fila y ofrece el acceso al detalle; **no navega sola** | S-01 paso 4a devuelve el dato al UCE invocante; REC-U06 existe para listar, y navegar sola le quitaría el listado que REC-18 paso 2 pide |
+| A7 | `sexo` no aparece en el formulario de REC-U05 | Ningún UCE lo pide (hueco G13): se reporta, no se inventa |
+| A8 | El diálogo de desactivación de REC-U07 no lista los turnos vigentes todavía | Listarlos exige el endpoint de turnos (T4b); el mensaje informa el hecho y la lista llega con esa tarea |
+
+**Pendiente del paso 3**: REC-U01, U02, U03, U04, U08, U09, U10 y U11. El paso 4 (revisión
+humana de 3 minutos por pantalla) no empezó: **ninguna de las tres está aprobada**.
+
+### L5 — T4a: backend de pacientes y lista de espera (2026-11-16)
+
+**Carril**: rama `feat/rec-t4-pacientes`, worktree `C:\work\sigemi-rec-t4`, base propia
+`sigemi_rec_t4` migrada desde cero. Merge en `main`: `f2076ea`.
+
+**Por qué se partió T4 en T4a y T4b**: la agenda depende de G10 (solapamiento
+`periodo_inhabilitado` / `bloqueo_agenda`), G11-G12 (tablas de agenda sin UCE que las
+gobierne) y de la configuración de agenda que todavía no está especificada. Construirla hoy
+sería inventar reglas. Pacientes y lista de espera no dependen de ningún hueco abierto.
+
+**Entregado** (7 endpoints, `/api/v1`): `POST /pacientes` (REC-16), `GET /pacientes`
+(REC-18, S-01), `GET /pacientes/{id}` (REC-18), `PATCH /pacientes/{id}` (REC-17),
+`POST /pacientes/{id}/baja` (REC-19), `GET /lista-espera` (REC-29) y
+`POST /lista-espera/{id}/quitar` (REC-28). Sin alta manual de lista de espera: hueco G8.
+
+**Decisiones nuevas registradas**
+
+| ID | Decisión | Por qué |
+|---|---|---|
+| A9 | `numero_registro` = `PAC-` + los primeros 8 hex del UUID de la fila, en mayúscula | El nivel 1 no lo pide y el nivel 3 lo declara único y generado por la aplicación. Un correlativo exige una secuencia, es decir una migración; el UUID da unicidad por construcción y el identificador es inmutable aunque se edite el DNI |
+| A10 | `dni`, `telefono` y `fecha_nacimiento` se validan en el servicio con mensaje de campo; el correo del paciente reusa `validar_correo` de SEG | REC-17 paso 8 pide validar «formato de DNI, teléfono, etc.» sin fijar el formato. Se fija lo mínimo defendible: DNI de 7-8 dígitos normalizado (sin puntos ni espacios), teléfono de 6-20 con el juego de caracteres de un número, fecha no futura |
+| A11 | El alta de paciente **no** audita; la edición, la baja y el quitar de lista **sí** | REC-16 no incluye la auditoría como paso y REC-17/19/28 sí (hueco G16: el silencio no se deduce, cada pantalla lo declara) |
+| A12 | «Quitar» de la lista de espera es baja lógica (`estado = "retirado"`), no borrado | El nivel 3 ya declara ese estado; el registro histórico de la cola se conserva |
+
+**Evidencia observada**
+
+- En el carril: `pytest -q` → **437 passed**, exit 0. `ruff check .` → `All checks passed!`;
+  `ruff format --check .` → `59 files already formatted`.
+- Sobre `main` con el carril integrado: `pytest -q` → **437 passed, 0 failed, 0 errors**
+  (baseline `133f393`: 397). `ruff check .` y `ruff format --check .` verdes.
+- Tests nuevos: 39 (28 de pacientes + 11 de lista de espera), todos por la interfaz pública
+  con las fixtures `client` y `db`.
+
+**Corrección del integrador sobre el trabajo del carril**: el filtro `dni` del listado
+comparaba el valor tal como se tipeaba, mientras el alta lo normaliza; buscar por
+`30.123.456` no encontraba al paciente guardado como `30123456`. Se extrajo `limpiar_dni` y
+se usa en ambos lados, con un test que lo pinnea.
+
+**Bloqueo reportado, no resuelto (migración del integrador)**: `paciente.dni` es único por
+regla de negocio (REC-16 paso 4, REC-17 exc. paso 8), pero el nivel 3 sólo declara
+`ix_paciente_dni`, **no único**. Hoy la unicidad se valida en el servicio y queda una ventana
+entre el `SELECT` y el `INSERT`: dos altas concurrentes con el mismo DNI pueden pasar las
+dos. La corrección es una migración aditiva con `UniqueConstraint("dni")` más la traducción
+del `IntegrityError` a `400` + `campo="dni"`, el mismo patrón que ya usa el correo de
+`usuario`. No se ejecutó: es DDL y pertenece al integrador.
+
+**Estado de la base de desarrollo**: `sigemi` estaba en `c1bf7c1dd493` (una revisión atrás).
+Se corrió `alembic upgrade head` → `d4e2a91f7b30`. La suite fallaba 13 tests con
+`relation "lista_espera" does not exist` hasta hacerlo: era estado de entorno, no un defecto
+del código.
+
+**Próximo paso**: T4b queda bloqueada por G10-G12. Lo que sigue sin bloqueo es terminar el
+paso 3 (REC-U08, U09) y la revisión humana de las tres pantallas ya especificadas.
