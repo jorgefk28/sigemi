@@ -49,6 +49,14 @@ class TurnoEstado(StrEnum):
     NO_ASISTIO = "no_asistio"
 
 
+class ListaEsperaEstado(StrEnum):
+    """State of a `lista_espera` entry (level 3, amendment S11)."""
+
+    PENDIENTE = "pendiente"
+    ASIGNADO = "asignado"
+    RETIRADO = "retirado"
+
+
 class AnalisisEstado(StrEnum):
     """Lifecycle of a mycological analysis (RF-06)."""
 

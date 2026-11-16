@@ -57,16 +57,29 @@ LEVEL3_COLUMNS: dict[str, set[str]] = {
         "id",
         "paciente_id",
         "indicacion_medica_id",
+        "tipo_analisis_id",
         "profesional_id",
         "espacio_id",
+        "serie_id",
         "fecha_hora",
         "telefono_contacto",
         "estado",
         "reprogramaciones",
         "motivo_cancelacion",
         "motivo_reprogramacion",
+        "motivo_inasistencia",
         "fecha_creacion",
         "fecha_atencion",
+    },
+    # S11 (level-3 amendment, L2): the waiting list has no table before it.
+    "lista_espera": {
+        "id",
+        "paciente_id",
+        "tipo_analisis_id",
+        "fecha_solicitud",
+        "estado",
+        "usuario_id",
+        "observaciones",
     },
     "indicacion_medica": {
         "id",
@@ -374,6 +387,7 @@ LEVEL3_COLUMNS: dict[str, set[str]] = {
 LEVEL3_TEXT_COLUMNS: dict[str, set[str]] = {
     "dato_clinico": {"valor"},
     "indicacion_medica": {"contenido"},
+    "lista_espera": {"observaciones"},
     "muestra": {"observaciones"},
     "hallazgo_analisis": {"dato"},
     "tipo_analisis": {"descripcion"},
@@ -398,6 +412,8 @@ LEVEL3_TEXT_COLUMNS: dict[str, set[str]] = {
 LEVEL3_INDEXES: dict[str, list[tuple[str, ...]]] = {
     "paciente": [("dni",), ("apellido", "nombre")],
     "turno": [("fecha_hora",), ("paciente_id",), ("profesional_id",), ("espacio_id",)],
+    # S11: the two indexes the amendment declares for the waiting list.
+    "lista_espera": [("estado",), ("fecha_solicitud",)],
     "analisis_micologico": [("estado",), ("muestra_id",)],
     "otp": [("analisis_id",)],
     "ficha_clinica": [("paciente_id",)],
@@ -446,8 +462,16 @@ LEVEL3_FOREIGN_KEYS: dict[tuple[str, str], tuple[str, bool]] = {
     ("version_ficha_clinica", "ficha_clinica_id"): ("ficha_clinica", False),
     ("version_ficha_clinica", "usuario_id"): ("usuario", False),
     ("turno", "indicacion_medica_id"): ("indicacion_medica", True),
-    ("turno", "espacio_id"): ("espacio_atencion", False),
-    ("indicacion_medica", "tipo_analisis_id"): ("tipo_analisis", True),
+    # S11: profesional and espacio are assigned after booking, so neither is
+    # required at creation (level-2 decision 5).
+    ("turno", "espacio_id"): ("espacio_atencion", True),
+    ("turno", "profesional_id"): ("profesional", True),
+    ("turno", "tipo_analisis_id"): ("tipo_analisis", True),
+    # S11: level 1 (UCE-REC-10) requires the analysis type, so it stops being nullable.
+    ("indicacion_medica", "tipo_analisis_id"): ("tipo_analisis", False),
+    ("lista_espera", "paciente_id"): ("paciente", False),
+    ("lista_espera", "tipo_analisis_id"): ("tipo_analisis", True),
+    ("lista_espera", "usuario_id"): ("usuario", True),
     ("muestra", "paciente_id"): ("paciente", False),
     ("muestra", "tipo_muestra_id"): ("tipo_muestra", False),
     ("muestra", "usuario_id"): ("usuario", False),
@@ -473,6 +497,28 @@ LEVEL3_FOREIGN_KEYS: dict[tuple[str, str], tuple[str, bool]] = {
     ("residuo_quimico", "analisis_id"): ("analisis_micologico", True),
     ("residuo_quimico", "disposicion_final_id"): ("disposicion_final", True),
     ("cambio_auditoria", "auditoria_id"): ("auditoria", False),
+}
+
+
+# S11: level-3 amendment for REC (L2 of the feature document).
+# `paciente` declared no requiredness before it, which made UCE-REC-15 step 6
+# ("datos demográficos incompletos") undecidable.
+PACIENTE_REQUIRED_COLUMNS: set[str] = {
+    "numero_registro",
+    "dni",
+    "nombre",
+    "apellido",
+    "fecha_nacimiento",
+    "telefono",
+    "estado",
+    "fecha_ingreso",
+    "nivel_registro",
+}
+PACIENTE_OPTIONAL_COLUMNS: set[str] = {
+    "sexo",
+    "domicilio",
+    "correo_electronico",
+    "obra_social",
 }
 
 
@@ -595,3 +641,36 @@ def test_modeling_decisions_s6() -> None:
     )
     assert "version_actual" in Base.metadata.tables["ficha_clinica"].c
     assert "version_actual" in Base.metadata.tables["analisis_micologico"].c
+
+
+# S11: the requiredness rule the amendment added to `paciente`.
+
+
+def test_paciente_required_columns_are_not_null() -> None:
+    table = Base.metadata.tables["paciente"]
+    nullable = {name for name in PACIENTE_REQUIRED_COLUMNS if table.c[name].nullable}
+    assert nullable == set(), f"paciente columns still nullable: {sorted(nullable)}"
+
+
+def test_paciente_optional_demographics_stay_nullable() -> None:
+    table = Base.metadata.tables["paciente"]
+    required = {
+        name for name in PACIENTE_OPTIONAL_COLUMNS if not table.c[name].nullable
+    }
+    assert required == set(), f"paciente columns became NOT NULL: {sorted(required)}"
+
+
+def test_turno_serie_id_is_a_plain_uuid_without_foreign_key() -> None:
+    """A series is a shared value, not an entity: level 3 declares no FK for it."""
+
+    column = Base.metadata.tables["turno"].c["serie_id"]
+    assert isinstance(column.type, PG_UUID)
+    assert column.nullable is True
+    assert not column.foreign_keys, f"turno.serie_id -> {column.foreign_keys}"
+
+
+def test_lista_espera_estado_defaults_to_pendiente() -> None:
+    column = Base.metadata.tables["lista_espera"].c["estado"]
+    assert column.nullable is False
+    assert column.default is not None
+    assert column.default.arg == "pendiente"

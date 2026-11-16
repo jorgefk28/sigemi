@@ -1,10 +1,13 @@
 """Agenda and scheduling models.
 
 Source: ``Diagramas/modelo_esquema_bd_sigemi.md``,
-section "Agenda / Atención" (tables: turno, indicacion_medica, espacio_atencion,
-grupo_espacio, tipo_bloqueo, configuracion_agenda, periodo_inhabilitado,
-bloqueo_agenda, disponibilidad_profesional, ausencia_profesional,
-oferta_reagendacion).
+section "Agenda / Atención" (tables: turno, lista_espera, indicacion_medica,
+espacio_atencion, grupo_espacio, tipo_bloqueo, configuracion_agenda,
+periodo_inhabilitado, bloqueo_agenda, disponibilidad_profesional,
+ausencia_profesional, oferta_reagendacion).
+
+``lista_espera`` and the nullability of ``turno``/``indicacion_medica`` come from
+the level-3 amendment authorised in L2 of ``odd/tasks/04-recepcion-turnos.md``.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from app.db.base import Base, UUIDPrimaryKeyMixin, utcnow
 from app.models.enums import (
     EstadoActivo,
     EstadoIndicacion,
+    ListaEsperaEstado,
     OfertaEstado,
     Recurrencia,
     TurnoEstado,
@@ -69,8 +73,8 @@ class IndicacionMedica(UUIDPrimaryKeyMixin, Base):
 
     titulo: Mapped[str] = mapped_column(nullable=False)
     contenido: Mapped[str] = mapped_column(Text(), nullable=False)
-    tipo_analisis_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("tipo_analisis.id"), nullable=True
+    tipo_analisis_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tipo_analisis.id"), nullable=False
     )
     estado: Mapped[str] = mapped_column(
         nullable=False, default=EstadoIndicacion.ACTIVA.value
@@ -82,7 +86,13 @@ class IndicacionMedica(UUIDPrimaryKeyMixin, Base):
 
 
 class Turno(UUIDPrimaryKeyMixin, Base):
-    """Patient appointment booked into the agenda."""
+    """Patient appointment booked into the agenda.
+
+    Level-3 amendment (S11): ``profesional_id`` and ``espacio_id`` are assigned
+    after booking, so neither is required at creation. ``serie_id`` groups the
+    appointments of a series and carries no foreign key: a series is a shared
+    value, not an entity.
+    """
 
     __tablename__ = "turno"
     __table_args__ = (
@@ -98,12 +108,16 @@ class Turno(UUIDPrimaryKeyMixin, Base):
     indicacion_medica_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("indicacion_medica.id"), nullable=True
     )
-    profesional_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("profesional.id"), nullable=False
+    tipo_analisis_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tipo_analisis.id"), nullable=True
     )
-    espacio_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("espacio_atencion.id"), nullable=False
+    profesional_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("profesional.id"), nullable=True
     )
+    espacio_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("espacio_atencion.id"), nullable=True
+    )
+    serie_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     fecha_hora: Mapped[datetime] = mapped_column(nullable=False)
     telefono_contacto: Mapped[str] = mapped_column(nullable=False)
     estado: Mapped[str] = mapped_column(
@@ -112,8 +126,38 @@ class Turno(UUIDPrimaryKeyMixin, Base):
     reprogramaciones: Mapped[int] = mapped_column(nullable=False, default=0)
     motivo_cancelacion: Mapped[str | None] = mapped_column(nullable=True)
     motivo_reprogramacion: Mapped[str | None] = mapped_column(nullable=True)
+    motivo_inasistencia: Mapped[str | None] = mapped_column(nullable=True)
     fecha_creacion: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
     fecha_atencion: Mapped[datetime | None] = mapped_column(nullable=True)
+
+
+class ListaEspera(UUIDPrimaryKeyMixin, Base):
+    """Patients waiting for a slot (S11: table added by the level-3 amendment).
+
+    ``prioridad`` is derived from ``fecha_solicitud`` and ``tipo_analisis_id``,
+    never stored.
+    """
+
+    __tablename__ = "lista_espera"
+    __table_args__ = (
+        Index("ix_lista_espera_estado", "estado"),
+        Index("ix_lista_espera_fecha_solicitud", "fecha_solicitud"),
+    )
+
+    paciente_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("paciente.id"), nullable=False
+    )
+    tipo_analisis_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tipo_analisis.id"), nullable=True
+    )
+    fecha_solicitud: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
+    estado: Mapped[str] = mapped_column(
+        nullable=False, default=ListaEsperaEstado.PENDIENTE.value
+    )
+    usuario_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("usuario.id"), nullable=True
+    )
+    observaciones: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
 
 class ConfiguracionAgenda(UUIDPrimaryKeyMixin, Base):
@@ -272,6 +316,7 @@ __all__ = [
     "EspacioAtencion",
     "GrupoEspacio",
     "IndicacionMedica",
+    "ListaEspera",
     "OfertaReagendacion",
     "PeriodoInhabilitado",
     "TipoBloqueo",

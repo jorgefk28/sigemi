@@ -27,7 +27,13 @@ from app.models.enums import AnalisisEstado, EstadoActivo, NivelRegistro
 
 
 class Paciente(UUIDPrimaryKeyMixin, Base):
-    """Patient master record."""
+    """Patient master record.
+
+    Requiredness follows the level-3 amendment (S11): the record identifies and
+    contacts the patient, while ``sexo``, ``domicilio``, ``correo_electronico``
+    and ``obra_social`` stay optional so an early registration (UCE-REC-09) can
+    be completed later (UCE-REC-15 step 6).
+    """
 
     __tablename__ = "paciente"
 
@@ -35,7 +41,7 @@ class Paciente(UUIDPrimaryKeyMixin, Base):
     dni: Mapped[str] = mapped_column(nullable=False)
     nombre: Mapped[str] = mapped_column(nullable=False)
     apellido: Mapped[str] = mapped_column(nullable=False)
-    fecha_nacimiento: Mapped[date | None] = mapped_column(nullable=True)
+    fecha_nacimiento: Mapped[date] = mapped_column(nullable=False)
     sexo: Mapped[str | None] = mapped_column(nullable=True)
     domicilio: Mapped[str | None] = mapped_column(nullable=True)
     telefono: Mapped[str] = mapped_column(nullable=False)
