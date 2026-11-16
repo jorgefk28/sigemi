@@ -753,11 +753,11 @@ construye esas cuatro primitivas en SEG-U02 y SEG-U03.
 | T2 | API de autenticación: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `get_current_user`, `require_roles`, wiring del router | S1, S4, S5 | delegated | ✅ |
 | T3 | CRUD de usuarios y asignación de roles (solo `administrador`), con auditoría de cada alta/baja/modificación | S1, S2, S3, S6 | inline | ✅ |
 | T4 | Inventario y especificación de las pantallas de SEG (pasos 1-4 de `odd/design/screen-design-plan.md`). Aprobada por el dueño el 2026-11-12 (L21) | S1, S6 | — | ✅ |
-| T5 | Implementación de las pantallas de SEG (patrones P1 y P3). **SEG-U02 y SEG-U03 entregadas** (L23, integradas en `c033122`); SEG-U04 y SEG-U05 quedan desbloqueadas por T7 y por D6 resuelto (L24); SEG-U06, U07 y U09 esperan T8, D5 y SMTP | S1, S6 | delegated | ⏳ |
-| T6 | Endurecer T3 según el review nativo: traducir la carrera de unicidad de correo y de reemplazo de roles a `400` con `campo`, pinear `direccion_ip` en las filas de auditoría, y validar el formato del correo con `400` + `campo` (UCE–SEG-02, excepción del paso 6; L24) | S1, S2 | — | ⏳ |
+| T5 | Implementación de las pantallas de SEG (patrones P1 y P3). **SEG-U02, SEG-U03, SEG-U04 y SEG-U05 entregadas** (L23 en `c033122`; L25 en `98f9a73`); SEG-U06, U07 y U09 esperan T8, D5 y SMTP; SEG-U08 espera D3 | S1, S6 | delegated | ⏳ |
+| T6 | Endurecer T3 según el review nativo: traducir la carrera de unicidad de correo y de reemplazo de roles a `400` con `campo`, pinear `direccion_ip` en las filas de auditoría, y validar el formato del correo con `400` + `campo` (UCE–SEG-02, excepción del paso 6; L24) | S1, S2 | delegated | ✅ (L25, integrada en `d160cd9`) |
 | T7 | Backend de auditoría (G1): `GET /api/v1/auditoria` y `GET /api/v1/auditoria/{id}`, solo `administrador`, con filtros `usuario_id`, `fecha_desde`, `fecha_hasta` y `accion` | S2 | delegated | ✅ (L22, integrada en `6f5113b`) |
 | T8 | Backend de contraseñas (G2): `POST /api/v1/auth/password`; `POST /api/v1/auth/recuperacion` y `/confirmar` quedan sujetos a D5 (token) y a la aprobación de la dependencia SMTP | S1, S6 | — | ⏳ |
-| T9 | Auditoría con el catálogo cerrado de `accion` (nivel 3, L24): auditar el bloqueo por intentos fallidos como `bloquear` en vez de `acceder`, y alinear el filtro de `GET /auditoria` al catálogo completo | S2 | — | ⏳ |
+| T9 | Auditoría con el catálogo cerrado de `accion` (nivel 3, L24): auditar el bloqueo por intentos fallidos como `bloquear` en vez de `acceder`, y alinear el filtro de `GET /auditoria` al catálogo completo | S2 | delegated | ✅ (L25, integrada en `d160cd9`) |
 
 ---
 
@@ -1254,3 +1254,61 @@ La entrada de T5 se renumeró de `L30` a `L23` para que la numeración quede mon
 
 
 
+
+### L25 — Cierre de T6 y T9, y pantallas SEG-U04 y SEG-U05 (2026-11-16)
+
+**Pedido del dueño, textual**: «verifica estados de worktrees, si estan integrados. En que estado de implementación está el sistema, y que falta implementar. Haz un plan de implementación por worktrees y sigamos avanzando con el desarrollo de este sistema.»
+
+**Verificación de worktrees al abrir esta entrada**: los cuatro carriles previos (`feat/seg-t3-usuarios`, `feat/seg-t4-inventario`, `feat/seg-t5-pantallas-seg`, `feat/seg-t7-auditoria`) son **ancestros de `main`** (`git merge-base --is-ancestor` exit 0 en los cuatro; `git log main..<rama>` vacío). Su único cambio pendiente era `.atl/skill-registry.md` (G6), preexistente y no commiteado. Nada quedó sin integrar.
+
+**Dos carriles nuevos, en paralelo, con superficies disjuntas y base `9b46b60`**
+
+| Carril | Rama | Worktree | Base de datos | Merge en `main` | Conflicto |
+|---|---|---|---|---|---|
+| T6 + T9 | `feat/seg-t6-endurecer` | `C:\work\sigemi-t6` | `sigemi_t6` | `d160cd9` | ninguno |
+| SEG-U04 + SEG-U05 (T5) | `feat/seg-t5-auditoria-ui` | `C:\work\sigemi-t5-ui` | no aplica | `98f9a73` | ninguno |
+
+Ningún carril editó `## Specs`, `## Screens`, `## Tasks` ni `## Log`: el integrador escribió las tres. `frontend/` y `backend/` nunca se cruzaron.
+
+**T6 — cerrado**
+
+1. **Carrera de unicidad de correo**: `crear_usuario` hacía `SELECT` y después `flush()`; el choque con el índice único se escapaba como `500`. Ahora responde `400` con el mismo cuerpo del chequeo previo (`campo="correo_electronico"`).
+2. **Carrera de reemplazo de roles**: misma ventana en `PUT /usuarios/{id}/roles`, traducida a `400` con `campo="roles"`.
+3. **`direccion_ip`**: **ya estaba hecho** en T3. Verificado: 3 llamadas a `registrar_auditoria` en `backend/app/api/v1/usuarios.py`, las 3 con `direccion_ip=client_ip(request)`. Sin cambios.
+4. **Formato del correo**: `validar_correo` con un patrón de la stdlib en `app/services/usuarios.py`, aplicado en alta y en `PATCH`. Se descartó `EmailStr` porque emite el `422` automático y el contrato del repo exige `400` + `campo`.
+
+**T9 — cerrado**: `AccionAuditoria.BLOQUEAR` agregado; el bloqueo por intentos fallidos audita `bloquear` (el login exitoso sigue en `acceder`); `ACCIONES_FILTRABLES` pasó de cuatro a los seis valores del catálogo cerrado y el mensaje de rechazo los enumera.
+
+**Pantallas SEG-U04 y SEG-U05 — entregadas**
+
+- `frontend/src/api/auditoria.ts` (capa HTTP de solo lectura), `AuditoriaPage.tsx` (P1: filtros de usuario, fecha desde/hasta y catálogo cerrado de `accion`; paginación; los cinco estados) y `AuditoriaDetallePage.tsx` (P2: cabecera de siete campos, tabla de cambios, `—` para vacíos, contraseña enmascarada rotulada «Contraseña actualizada»).
+- El detalle es **estado de vista**, no ruta, para que «Volver» conserve los filtros aplicados; por eso `draft`/`applied`/`offset` viven en el padre.
+- `Shell.tsx` conecta la página `auditoria` que ya existía en `navigation.ts` como marcador de posición.
+
+**Evidencia observada sobre `main` con los dos carriles integrados** (primera vez que coexisten)
+
+- `pytest` completo desde `backend/` → **378 passed, 1 warning in 68.61 s**, exit 0 (baseline `9b46b60`: 373).
+- `ruff check .` → `All checks passed!`; `ruff format --check .` → `50 files already formatted`.
+- `npx tsc --noEmit` → exit 0. `npm run lint` → exit 0.
+- `npm test` → **8 archivos, 66 passed** (baseline `9b46b60`: 6 archivos, 45).
+- `npm run build` → exit 0, `index-CJa6gV8r.js` 259,13 kB.
+
+**RED/GREEN de cada carril**
+
+- T6/T9: RED de 7 tests antes de implementar (formato aceptado, carreras con `500`, bloqueo con `acceder`, filtro con `400` para `acceder`/`bloquear`); GREEN 7 passed. Suite del carril: 378 passed. Diferencial: 5 sondas de comportamiento no tocado (login exitoso, alta válida, `PATCH` válido, reemplazo de roles válido, filtro `accion=modificar`) idénticas contra `9b46b60` y contra el cambio.
+- SEG-U04/U05: **el carril no observó un RED de funcionalidad ausente**: escribió las pantallas antes de la primera corrida. El RED que sí observó fue la primera suite completa (14 failed / 52 passed por dos aserciones frágiles), corregido. Se registra como desviación del test-first, no como evidencia válida. Diferencial: las 45 pruebas previas quedan byte-idénticas y verdes.
+
+**Correcciones técnicas registradas**
+
+- `Intl.DateTimeFormat('es-AR', …)` con fecha y hora juntas emite `12/11/2026, 12:30` (coma). El formato `dd/MM/yyyy HH:mm` exige dos llamadas unidas por espacio. `formatFechaHora` lo hace así y el test lo pinnea.
+- La zona horaria de `fecha_hora` no está en la especificación. **Supuesto A5**: se muestra en hora local del navegador (R4), porque el auditor lee el registro en su propio horario. El backend sigue devolviendo UTC.
+
+**Supuesto nuevo**
+
+| ID | Supuesto | Por qué |
+|---|---|---|
+| A5 | `fecha_hora` se presenta en hora local del navegador | La especificación fija el formato, no la zona; el registro se lee en el horario del auditor |
+
+**Higiene**: el probe diferencial del carril de T6 dejó un worktree temporal fuera del repositorio, ya eliminado. `.atl/skill-registry.md` (G6) sigue modificado y sin commitear; no se tocó.
+
+**Próximo paso**: SEG-U08 y SEG-U09 esperan D3; SEG-U06/U07 esperan D5 y la aprobación de SMTP; T8 tiene un ítem desbloqueado (`POST /api/v1/auth/password`). Fuera de SEG, los cuatro subsistemas restantes (REC, DIAG, LAB, REP) están al 0 % y necesitan feature doc y diseño antes de implementarse.
