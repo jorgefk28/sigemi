@@ -76,6 +76,37 @@ describe('back-office screens', () => {
     ).toBeInTheDocument();
   });
 
+  it('renders every module of the sidebar without throwing', async () => {
+    stubBackend();
+    const user = userEvent.setup();
+    render(<App />);
+
+    const pages = [
+      'Insumos y Stock',
+      'Control de Residuos',
+      'Reportes y Estadísticas',
+      'Usuarios y Roles',
+      'Auditoría',
+      'Agenda y Turnos',
+      'Resultados',
+      'Pacientes',
+      'Panel de Control',
+      'Análisis',
+    ];
+
+    // Wait for the session restore before walking the menu.
+    await screen.findByRole('button', { name: /Insumos y Stock$/ });
+
+    for (const page of pages) {
+      await user.click(screen.getByRole('button', { name: new RegExp(`${page}$`) }));
+      // A screen that throws during render fails the click above; a screen that
+      // mounts keeps the shell's navigation available.
+      expect(
+        await screen.findByRole('button', { name: /Insumos y Stock/ }),
+      ).toBeInTheDocument();
+    }
+  });
+
   it('hides the administration modules from a non-administrator', async () => {
     stubFetchRouter({
       '/api/v1/auth/me': jsonResponse({ ...ADMIN, roles: ['bioquimico'] }),
