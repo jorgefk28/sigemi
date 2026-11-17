@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config';
+import { notifyUnauthorized } from './unauthorized';
 
 /**
  * Shared HTTP layer for the authenticated screens.
@@ -101,6 +102,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions): Prom
   }
 
   if (!response.ok) {
+    // A `401` on a request that carried a token means the session died while
+    // the user was working. One signal, handled once by the session provider,
+    // instead of a redirect copied into every screen.
+    if (response.status === 401 && token) {
+      notifyUnauthorized();
+    }
     throw await errorFrom(response);
   }
 

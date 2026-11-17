@@ -123,6 +123,77 @@ describe('REC-U11 lista de espera', () => {
     ).toBe(true);
   });
 
+  it('applies only its own value when the state changes, not the unsubmitted dates', async () => {
+    const fetchMock = renderLista({
+      '/api/v1/lista-espera?estado=asignado&limit=20&offset=0': jsonRoute(page([])),
+    });
+    const user = userEvent.setup();
+
+    await screen.findByText('García, Ana');
+    await user.type(screen.getByLabelText('Solicitud desde'), '2026-11-01');
+    await user.selectOptions(screen.getByLabelText('Estado'), 'asignado');
+
+    // A select applies on change, but a half-typed date stays in the draft.
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) => url === '/api/v1/lista-espera?estado=asignado&limit=20&offset=0',
+      ),
+    ).toBe(true);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('fecha_desde'))).toBe(false);
+  });
+
+  it('steps back a page when the last entry of a page is removed', async () => {
+    const primeraPagina = Array.from({ length: 20 }, (_, index) => ({
+      ...entradaPendiente,
+      id: `e-${index}`,
+      paciente_apellido: `Paciente ${index}`,
+      paciente_dni: String(30000000 + index),
+    }));
+    const ultimaEntrada: EntradaListaEspera = {
+      ...entradaPendiente,
+      id: 'e-last',
+      paciente_apellido: 'Zárate',
+      paciente_nombre: 'Última',
+      paciente_dni: '39999999',
+    };
+
+    let segundaPaginaLlamadas = 0;
+    const fetchMock = renderLista({
+      [LIST_URL]: jsonRoute(page(primeraPagina, { total: 21 })),
+      '/api/v1/lista-espera?estado=pendiente&limit=20&offset=20': () => {
+        segundaPaginaLlamadas += 1;
+        // After the removal the page is out of range and answers empty; the
+        // screen must walk back instead of claiming the list is empty.
+        return Promise.resolve(
+          segundaPaginaLlamadas === 1
+            ? jsonResponse(page([ultimaEntrada], { total: 21, offset: 20 }))
+            : jsonResponse(page([], { total: 20, offset: 20 })),
+        );
+      },
+      '/api/v1/lista-espera/e-last/quitar': () =>
+        Promise.resolve(jsonResponse({ ...ultimaEntrada, estado: 'retirado' })),
+    });
+    const user = userEvent.setup();
+
+    await screen.findByText('Paciente 0, Ana');
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }));
+    await screen.findByText('Zárate, Última');
+
+    await user.click(screen.getByRole('button', { name: 'Quitar a Zárate, Última' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+    // Back on page 1, with rows, and never the false "no hay pacientes".
+    expect(await screen.findByText('Paciente 0, Ana')).toBeInTheDocument();
+    expect(
+      screen.queryByText('No hay pacientes en lista de espera'),
+    ).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.filter(
+        ([url]) => url === '/api/v1/lista-espera?estado=pendiente&limit=20&offset=0',
+      ).length,
+    ).toBeGreaterThan(1);
+  });
+
   it('shows the empty state with the textual message of REC-29', async () => {
     renderLista({ [LIST_URL]: jsonRoute(page([])) });
 

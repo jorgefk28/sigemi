@@ -114,6 +114,40 @@ describe('storage that refuses to work', () => {
   });
 });
 
+describe('an expired token discovered by a screen', () => {
+  it('closes the session and asks for credentials again', async () => {
+    sessionStorage.setItem(TOKEN_KEY, 'token-expira');
+    stubFetchRouter({
+      [ME_URL]: jsonRoute(userFixture),
+      // The boot succeeded; the screen's own request is the one that expires.
+      '/api/v1/pacientes?limit=20&offset=0': () =>
+        Promise.resolve(jsonResponse({ detail: 'Credenciales inválidas' }, 401)),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Estado operativo del laboratorio' });
+    await user.click(screen.getByRole('button', { name: 'Pacientes' }));
+
+    // No "Reintentar" that can never succeed: the session is gone.
+    expect(await screen.findByLabelText('Correo electrónico')).toBeInTheDocument();
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull();
+  });
+});
+
+describe('an unverified session at /login', () => {
+  it('offers the retry panel instead of credentials the user does not need', async () => {
+    sessionStorage.setItem(TOKEN_KEY, 'token-guardado');
+    window.history.replaceState({}, '', '/login');
+    stubFetchRouter({ [ME_URL]: () => Promise.reject(new Error('offline')) });
+
+    render(<App />);
+
+    expect(await screen.findByText('No se pudo conectar con el servidor')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Correo electrónico')).not.toBeInTheDocument();
+  });
+});
+
 describe('shell hygiene', () => {
   it('titles the document after the active screen', async () => {
     sessionStorage.setItem(TOKEN_KEY, 'token-title');

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from '../App';
-import { jsonResponse, stubFetchRouter, userFixture } from '../test/fixtures';
+import { jsonResponse, jsonRoute, stubFetchRouter, userFixture } from '../test/fixtures';
+import { pacienteActivo, pacientesPage } from '../test/recepcionFixtures';
 
 /**
  * The active screen is derived from the URL (S6 + SEG-U07 entry contract), not
@@ -17,7 +18,10 @@ function renderAt(path: string, roles: string[] = ['bioquimico']) {
   sessionStorage.setItem(TOKEN_KEY, 'token-routing');
   window.history.replaceState({}, '', path);
   stubFetchRouter({
-    '/api/v1/auth/me': jsonResponse({ ...userFixture, roles }),
+    '/api/v1/auth/me': () => Promise.resolve(jsonResponse({ ...userFixture, roles })),
+    // The list the screen fetches on mount: without it the screen renders its
+    // error state and the heading assertion would pass for the wrong reason.
+    '/api/v1/pacientes?limit=20&offset=0': jsonRoute(pacientesPage([pacienteActivo])),
   });
   render(<App />);
 }
@@ -26,8 +30,10 @@ describe('URL-driven navigation', () => {
   it('opens the screen named by the URL on a cold load', async () => {
     renderAt('/pacientes');
 
+    // A row proves the screen is alive, not just its heading.
+    expect(await screen.findByText('30123456')).toBeInTheDocument();
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Pacientes' }),
+      screen.getByRole('heading', { level: 1, name: 'Pacientes' }),
     ).toBeInTheDocument();
     // The landing page is not rendered on top of it.
     expect(

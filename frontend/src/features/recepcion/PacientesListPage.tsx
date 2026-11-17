@@ -79,9 +79,16 @@ export function PacientesListPage() {
     const filters: PacienteFilters = { ...applied, limit: PACIENTES_PAGE_SIZE, offset };
     listPacientes(token, filters)
       .then((pagina) => {
-        if (!cancelled) {
-          setPage(pagina);
+        if (cancelled) {
+          return;
         }
+        // Removing the last rows of a page leaves the offset outside the range:
+        // step back instead of showing a false "nobody is registered".
+        if (pagina.items.length === 0 && offset > 0) {
+          setOffset(Math.max(0, offset - PACIENTES_PAGE_SIZE));
+          return;
+        }
+        setPage(pagina);
       })
       .catch((error: unknown) => {
         if (cancelled) {
@@ -116,9 +123,11 @@ export function PacientesListPage() {
   function changeFilter(field: keyof FilterValues, value: string) {
     const siguientes = { ...draft, [field]: value };
     setDraft(siguientes);
-    // The select applies on change; the text criteria wait for the submit.
+    // A select applies on change, but only its own value: applying the whole
+    // draft would smuggle the half-typed text criteria into the query.
     if (field === 'estado') {
-      applyFilters(siguientes);
+      setApplied({ ...applied, estado: value });
+      setOffset(0);
     }
   }
 

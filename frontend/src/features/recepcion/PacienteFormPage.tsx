@@ -88,6 +88,14 @@ function changesOf(paciente: Paciente, values: FormValues): PacienteUpdate {
   const cambios: PacienteUpdate = {};
 
   const igual = (a: string, b: string) => a.trim() === b.trim();
+  /**
+   * An emptied optional field travels as `''`, not as `null`: the backend
+   * serializes the payload with `exclude_none=True`, so a `null` is dropped and
+   * the field is silently left untouched. `''` survives that filter and
+   * `normalizar_optional`/`normalizar_correo` turn it into `NULL`.
+   */
+  const optional = (value: string) => value.trim();
+
   if (!igual(values.dni, original.dni)) {
     cambios.dni = values.dni.trim();
   }
@@ -104,13 +112,13 @@ function changesOf(paciente: Paciente, values: FormValues): PacienteUpdate {
     cambios.telefono = values.telefono.trim();
   }
   if (!igual(values.correo_electronico, original.correo_electronico)) {
-    cambios.correo_electronico = values.correo_electronico.trim() || null;
+    cambios.correo_electronico = optional(values.correo_electronico);
   }
   if (!igual(values.domicilio, original.domicilio)) {
-    cambios.domicilio = values.domicilio.trim() || null;
+    cambios.domicilio = optional(values.domicilio);
   }
   if (!igual(values.obra_social, original.obra_social)) {
-    cambios.obra_social = values.obra_social.trim() || null;
+    cambios.obra_social = optional(values.obra_social);
   }
 
   return cambios;
@@ -174,6 +182,11 @@ export function PacienteFormPage() {
       delete next[field];
       return next;
     });
+    // The offer to open the existing patient stops being true once the DNI is
+    // edited: leaving it on screen points at the wrong record.
+    if (field === 'dni') {
+      setDuplicateDni(null);
+    }
   }
 
   /** Open the existing patient when a create is rejected by a duplicate DNI. */
@@ -216,9 +229,9 @@ export function PacienteFormPage() {
           domicilio: values.domicilio.trim() || null,
           obra_social: values.obra_social.trim() || null,
         };
-        const creado = await createPaciente(token, payload);
+        await createPaciente(token, payload);
         // REC-16 paso 6: the alta returns to the listing.
-        navigate('/pacientes', { state: { created: creado.id } });
+        navigate('/pacientes');
       } else if (paciente) {
         const cambios = changesOf(paciente, values);
         if (Object.keys(cambios).length > 0) {

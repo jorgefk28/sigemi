@@ -6,6 +6,7 @@ import { Shell } from './features/shell/Shell';
 import { LoginPage } from './features/auth/LoginPage';
 import { LoadingScreen } from './components/LoadingScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { SessionUnavailable } from './components/SessionUnavailable';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { PlaceholderPage } from './features/placeholder/PlaceholderPage';
 import { ChangePasswordPage } from './features/profile/ChangePasswordPage';
@@ -20,13 +21,19 @@ import { homePath } from './features/navigation/navigation';
 
 /**
  * `/login` (SEG-U01) is the only anonymous entry point. A signed-in user that
- * reaches it is sent to its landing page instead of seeing the form again.
+ * reaches it is sent to its landing page instead of seeing the form again, and a
+ * stored token the server could not verify shows the retry panel rather than
+ * credentials the user does not need.
  */
 function LoginRoute() {
-  const { status, user } = useAuth();
+  const { status, user, reload } = useAuth();
 
   if (status === 'loading') {
     return <LoadingScreen />;
+  }
+
+  if (status === 'unavailable') {
+    return <SessionUnavailable onRetry={reload} />;
   }
 
   if (status === 'authenticated' && user) {

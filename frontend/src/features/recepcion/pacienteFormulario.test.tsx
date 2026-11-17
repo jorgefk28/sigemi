@@ -138,6 +138,34 @@ describe('REC-U05 alta de paciente', () => {
       ),
     ).toBe(true);
   });
+
+  it('withdraws the offer to open the existing patient once the DNI is edited', async () => {
+    renderForm('/pacientes/nuevo', {
+      [CREATE_URL]: () =>
+        Promise.resolve(
+          jsonResponse({ detail: 'El paciente ya se encuentra registrado', campo: 'dni' }, 400),
+        ),
+      '/api/v1/pacientes?dni=30123456&limit=1&offset=0': jsonRoute(
+        pacientesPage([pacienteActivo]),
+      ),
+      [DETAIL_URL]: jsonRoute(pacienteActivo),
+    });
+    const user = userEvent.setup();
+
+    await fillRequired(user);
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    const abrir = await screen.findByRole('button', {
+      name: 'Abrir la ficha del paciente existente',
+    });
+    expect(abrir).toBeInTheDocument();
+
+    // The offer points at the DNI that collided; editing it makes it stale.
+    await user.type(screen.getByLabelText('DNI'), '9');
+    expect(
+      screen.queryByRole('button', { name: 'Abrir la ficha del paciente existente' }),
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe('REC-U05 edición de paciente', () => {
@@ -230,6 +258,30 @@ describe('REC-U05 edición de paciente', () => {
     expect(
       fetchMock.mock.calls.some(([, init]) => ['POST', 'PATCH'].includes(String((init as RequestInit)?.method))),
     ).toBe(false);
+  });
+
+  it('clears an optional field by sending an empty string, not null', async () => {
+    const fetchMock = renderForm('/pacientes/p-ana/editar', {
+      [DETAIL_URL]: (_url, init) =>
+        Promise.resolve(
+          init?.method === 'PATCH'
+            ? jsonResponse({ ...pacienteActivo, obra_social: null })
+            : jsonResponse(pacienteActivo),
+        ),
+    });
+    const user = userEvent.setup();
+
+    const obraSocial = await screen.findByLabelText('Obra social');
+    expect(obraSocial).toHaveValue('OSDE');
+    await user.clear(obraSocial);
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    const call = fetchMock.mock.calls.find(
+      ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
+    );
+    // `null` would be dropped by the backend's `exclude_none=True` and the field
+    // would stay untouched; `''` survives and becomes NULL.
+    expect(JSON.parse(String((call?.[1] as RequestInit).body))).toEqual({ obra_social: '' });
   });
 
   it('reports a network failure as a retry, never as a duplicate DNI', async () => {

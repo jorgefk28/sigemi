@@ -13,6 +13,7 @@ import {
   login as apiLogin,
   type User,
 } from '../api/auth';
+import { onUnauthorized } from '../api/unauthorized';
 import { clearSession, loadToken, saveSession } from './sessionStore';
 
 /**
@@ -86,6 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAttempt((valor) => valor + 1);
   }, []);
 
+  const logout = useCallback(() => {
+    clearSession();
+    setUser(null);
+    setStatus('unauthenticated');
+  }, []);
+
+  // An expired token discovered by any screen lands here.
+  useEffect(() => onUnauthorized(logout), [logout]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
@@ -99,14 +109,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(meUser);
         setStatus('authenticated');
       },
-      logout() {
-        clearSession();
-        setUser(null);
-        setStatus('unauthenticated');
-      },
+      logout,
       reload,
     }),
-    [status, user, reload],
+    [status, user, logout, reload],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

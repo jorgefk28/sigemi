@@ -97,9 +97,16 @@ export function ListaEsperaPage() {
     };
     listListaEspera(token, filters)
       .then((pagina) => {
-        if (!cancelled) {
-          setPage(pagina);
+        if (cancelled) {
+          return;
         }
+        // Removing the last entry of a page leaves the offset out of range:
+        // step back rather than claim the wait list is empty.
+        if (pagina.items.length === 0 && offset > 0) {
+          setOffset(Math.max(0, offset - LISTA_ESPERA_PAGE_SIZE));
+          return;
+        }
+        setPage(pagina);
       })
       .catch((error: unknown) => {
         if (cancelled) {
@@ -137,9 +144,11 @@ export function ListaEsperaPage() {
   function changeFilter(field: keyof FilterValues, value: string) {
     const siguientes = { ...draft, [field]: value };
     setDraft(siguientes);
-    // A select applies on change; the dates wait for the submit.
+    // A select applies on change, but only its own value: applying the whole
+    // draft would smuggle the half-typed dates into the query.
     if (field === 'estado') {
-      applyFilters(siguientes);
+      setApplied({ ...applied, estado: value });
+      setOffset(0);
     }
   }
 
