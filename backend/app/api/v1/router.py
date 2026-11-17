@@ -8,6 +8,7 @@ from app.api.v1 import (
     auditoria,
     auth,
     catalogos,
+    indicaciones,
     lista_espera,
     pacientes,
     roles,
@@ -22,3 +23,4 @@ api_router.include_router(auditoria.router)
 api_router.include_router(pacientes.router)
 api_router.include_router(lista_espera.router)
 api_router.include_router(catalogos.router)
+api_router.include_router(indicaciones.router)
