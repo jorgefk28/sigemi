@@ -78,5 +78,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions): Prom
     throw await errorFrom(response);
   }
 
+  // `204 No Content` carries no body: the backend answers it on a successful
+  // write that returns nothing (for example `POST /auth/password`).
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return (await response.json()) as T;
 }

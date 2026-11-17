@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config';
+import { apiRequest } from './http';
 
 /** Response of a successful login (backend `Token` schema). */
 export interface TokenResponse {
@@ -117,4 +118,24 @@ export async function fetchMe(token: string): Promise<User> {
   }
 
   return (await response.json()) as User;
+}
+
+/** Body of `POST /auth/password` (backend `CambioContrasena`). */
+export interface ChangePasswordRequest {
+  contrasena_actual: string;
+  contrasena_nueva: string;
+}
+
+/**
+ * Change the signed-in user's own password (UCE-SEG-08, pasos 2-8).
+ *
+ * Answers `204` on success. A rejected current password or a weak new one comes
+ * back as `400` with `campo`, so the form can place the message on the field
+ * (R3) instead of a banner.
+ */
+export function changePassword(
+  token: string | null,
+  datos: ChangePasswordRequest,
+): Promise<void> {
+  return apiRequest<void>('/auth/password', { method: 'POST', token, body: datos });
 }
