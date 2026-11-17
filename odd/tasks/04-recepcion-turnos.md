@@ -515,7 +515,7 @@ El selector de tipo de análisis se llena con `GET /tipos-analisis` (T1 de
 | T3 | Diseño paso 3: especificación de las 11 pantallas con la plantilla del plan | S1-S10 | — | ⏳ (L4: REC-U05, U06 y U07 especificadas) |
 | T4a | Backend REC de pacientes y lista de espera: REC-16/17/18/19, S-01 y REC-28/29 | S5, S8 | delegated (carril `feat/rec-t4-pacientes`) | ✅ (L5, integrada en `f2076ea`) |
 | T4b | Backend REC de agenda, turnos y asistencia | S6, S7, S9 | — | ⏳ bloqueada por G10-G12 |
-| T5 | Pantallas REC: P1 (REC-U06) y P3 (REC-U05) primero, después las demás instancias | S1-S10 | — | ⏳ REC-U06, U05 y U07 entregadas (L6) |
+| T5 | Pantallas REC: P1 (REC-U06) y P3 (REC-U05) primero, después las demás instancias | S1-S10 | — | ✅ REC-U05, U06, U07, U08, U09 y U11 (L6, L7) |
 | T6 | Integración con el Agente IA y WhatsApp: requiere decisión de proveedor | S1, S2, S3, S4 | — | ⛔ bloqueada |
 
 **Risk**: ítem 1 (cambio de esquema persistido) e ítem 3 (contrato que consumen los otros
@@ -812,3 +812,28 @@ textual de REC-29, confirmación que se puede cancelar sin request, sin acción 
 retirada, error con Reintentar, y redirección de un bioquímico). Con esa pantalla el suite
 queda en **121 passed** (15 archivos), `tsc` 0, `lint` 0 y `build` verde. El backend ya estaba
 probado en vivo para esos dos endpoints (probe de arriba).
+
+### L7 — T5: indicaciones médicas, backend y pantallas (2026-11-17)
+
+Cierra la última mitad de REC que no dependía de la agenda.
+
+**Backend** (`/indicaciones-medicas`): listado con `q`, `estado` y `tipo_analisis_id`; detalle;
+alta; `PATCH` parcial; `POST /{id}/baja`. Roles: `bioquimico` y `administrador` (las cuatro UCE
+declaran esa precondición). El listado resuelve `tipo_analisis_nombre` en una consulta, así que
+la tabla no pide una fila por request. La baja es lógica e idempotente porque los turnos
+históricos siguen apuntando a la indicación que usaron (comentario de UCE-REC-12).
+
+**Pantallas**: `IndicacionesListPage` (REC-U09, P1: las cuatro columnas de REC-13 paso 3,
+filtros por estado y tipo, eliminar con confirmación, «No hay indicaciones médicas registradas»
+textual) y `IndicacionFormPage` (REC-U08, P3: los tres campos obligatorios, selector alimentado
+por el catálogo clínico y aviso explícito cuando el catálogo está vacío).
+
+**Página nueva en el sidebar**: `Indicaciones Médicas` (A-11), porque UCE-REC-10 paso 1 y
+REC-13 paso 1 dicen «módulo de Indicaciones Médicas» y el prototipo no lo tenía.
+
+**Evidencia**: `backend/tests/test_rec_indicaciones.py` (9 casos);
+`frontend/src/features/recepcion/indicaciones.test.tsx` (11 casos).
+
+**Estado de REC**: **6 de 11 pantallas** implementadas (U05, U06, U07, U08, U09, U11). Las cinco
+restantes (U01-U04, U10) son la agenda, bloqueada por G10-G12 y por la prohibición de editar
+los niveles 1-3 desde este repo (A-09).

@@ -61,6 +61,17 @@ tiene esa pantalla, pero UCE-REC-29 la exige y su precondición es el rol admini
 ve todas las páginas: la tabla de arriba sigue siendo correcta y ningún otro rol cambia. La
 derivación está en `04-recepcion-turnos.md` §`Screens` (REC-U11) y L6 de su Log.
 
+**Tres páginas más agregadas por el nivel 1 (2026-11-17)**, con el mismo criterio (divergencia
+contra la autoridad de presentación, reportada en el Log de cada subsistema):
+
+| Página | Path | Roles | Respaldo |
+|---|---|---|---|
+| `Indicaciones Médicas` | `/indicaciones` | bioquimico | UCE-REC-10 paso 1 y REC-13 paso 1: «módulo de Indicaciones Médicas» |
+| `Catálogos Clínicos` | `/catalogos` | sólo administrador | UCE-DIAG-10 paso 1: «módulo de Catálogos Clínicos» |
+
+La tabla de roles de arriba sigue siendo válida: `administrador` ve todas; `bioquimico` suma
+`Indicaciones Médicas`; `profesor` no cambia. Decisión A-11 de `odd/DECISIONES-AUTONOMAS.md`.
+
 ### S6 — Armazón visual (autoridad de presentación: Figma `X7mBlw5ZzuvAIyZXb1UVdG`, nodo `1:3`)
 
 Del code layer del prototipo, tal cual:
