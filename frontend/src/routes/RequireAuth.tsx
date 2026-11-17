@@ -1,24 +1,25 @@
 import type { ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../session/auth';
-import { LoginPage } from '../features/auth/LoginPage';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 /**
- * Auth guard for the protected area. Without a session the app renders the
- * login screen and never the shell. T2 wraps the real `PageShell` with this.
+ * Auth guard for the protected area. Without a session the app sends the
+ * browser to `/login` and never renders the shell.
+ *
+ * The guard is a redirect and not an inline render so the login screen owns its
+ * own URL (SEG-U01): a reload on `/pacientes` restores the session and comes
+ * back to `/pacientes`, and logging out leaves `/login` in the history.
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
 
   if (status === 'loading') {
-    return (
-      <div role="status" aria-live="polite" className="p-6 text-muted">
-        Cargando…
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (status === 'unauthenticated') {
-    return <LoginPage />;
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;

@@ -1,45 +1,62 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { PageShell } from '../../components/PageShell';
 import { Sidebar } from '../../components/Sidebar';
+import { UserMenu } from '../../components/UserMenu';
 import { useAuth } from '../../session/auth';
 import { DashboardPage } from '../dashboard/DashboardPage';
 import { PlaceholderPage } from '../placeholder/PlaceholderPage';
+import { ChangePasswordPage } from '../profile/ChangePasswordPage';
+import { ProfilePage } from '../profile/ProfilePage';
 import { AuditoriaPage } from '../seguridad/AuditoriaPage';
 import { UsuariosPage } from '../seguridad/UsuariosPage';
 import {
-  DEFAULT_PAGE_ID,
+  accountRouteByPath,
+  canSeePage,
   findPage,
   groupOf,
+  homePath,
+  pageByPath,
   visibleGroups,
 } from '../navigation/navigation';
 
 /**
  * Authenticated shell: composes `PageShell` + `Sidebar` + the active page.
- * Owns the selected page state and maps the user's roles to visible groups.
+ *
+ * The active page is derived from the URL, not from component state, so a
+ * reload, a deep link and the browser back button all resolve to the same
+ * screen. An unknown or forbidden path is answered with a redirect to the
+ * landing page — never with a raw 403 on screen (R2).
  */
 export function Shell() {
   const { user, logout } = useAuth();
-  const [activePageId, setActivePageId] = useState<string>(() => {
-    // Land on the first visible page: Panel de Control for administrators and
-    // biochemists, the first permitted page for narrower roles.
-    const groups = user ? visibleGroups(user.roles) : [];
-    return groups[0]?.pages[0]?.id ?? DEFAULT_PAGE_ID;
-  });
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  // Forbidden means "go back to the start", not a raw 403 on screen.
   const goHome = useCallback(() => {
-    const visible = user ? visibleGroups(user.roles) : [];
-    setActivePageId(visible[0]?.pages[0]?.id ?? DEFAULT_PAGE_ID);
-  }, [user]);
+    if (user) {
+      navigate(homePath(user.roles), { replace: true });
+    }
+  }, [navigate, user]);
 
   if (!user) {
     // Unreachable under RequireAuth; defensive.
     return null;
   }
 
+  const home = homePath(user.roles);
+  const page = pageByPath(location.pathname);
+  const account = accountRouteByPath(location.pathname);
+
+  if (!page && !account) {
+    return <Navigate to={home} replace />;
+  }
+  if (page && !canSeePage(page, user.roles)) {
+    return <Navigate to={home} replace />;
+  }
+
   const groups = visibleGroups(user.roles);
-  const activePage = findPage(activePageId) ?? findPage(DEFAULT_PAGE_ID)!;
-  const activeGroup = groupOf(activePage.id);
+  const activeGroup = page ? groupOf(page.id) : undefined;
 
   return (
     <PageShell
@@ -47,24 +64,34 @@ export function Shell() {
         <Sidebar
           user={user}
           groups={groups}
-          activePageId={activePage.id}
-          onSelectPage={setActivePageId}
+          activePageId={page?.id ?? ''}
+          onSelectPage={(id) => {
+            const target = findPage(id);
+            if (target) {
+              navigate(target.path);
+            }
+          }}
           onLogout={logout}
         />
       }
       breadcrumb={{
-        section: activeGroup?.label ?? '',
-        title: activePage.title,
+        section: account?.section ?? activeGroup?.label ?? '',
+        title: account?.title ?? page?.title ?? '',
       }}
+      actions={<UserMenu user={user} onOpenProfile={() => navigate('/perfil')} />}
     >
-      {activePage.id === 'dashboard' ? (
+      {location.pathname === '/perfil/contrasena' ? (
+        <ChangePasswordPage />
+      ) : location.pathname === '/perfil' ? (
+        <ProfilePage />
+      ) : page?.id === 'dashboard' ? (
         <DashboardPage />
-      ) : activePage.id === 'usuarios' ? (
+      ) : page?.id === 'usuarios' ? (
         <UsuariosPage onForbidden={goHome} />
-      ) : activePage.id === 'auditoria' ? (
+      ) : page?.id === 'auditoria' ? (
         <AuditoriaPage onForbidden={goHome} />
       ) : (
-        <PlaceholderPage title={activePage.title} />
+        <PlaceholderPage title={page?.title ?? ''} />
       )}
     </PageShell>
   );
