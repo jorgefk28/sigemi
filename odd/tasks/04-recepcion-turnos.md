@@ -673,6 +673,16 @@ exit 0; `npm test` → **103 passed** (13 archivos); `npm run build` → `✓ bu
 placeholder de las páginas sin pantalla— sigue verde: el caso que usaba «Pacientes» como
 ejemplo de placeholder se movió a «Análisis», que es el que sigue sin especificación.
 
+**Probe en vivo contra el backend real** (PostgreSQL de desarrollo en `5433`, `alembic
+current` = `d4e2a91f7b30`, `uvicorn` en `127.0.0.1:8010`), con las URLs exactas que arma
+`buildQuery`: **19 de 19 OK**, sin fallas. Cubre login form-urlencoded, `/auth/me`,
+`/pacientes` sobre `{items,total,limit,offset}`, las columnas exactas de `PacienteRead`, los
+filtros `q`, `dni` (exacto, el que usa el alta con DNI repetido) y `estado`, alta `201`, DNI
+repetido `400` con `campo="dni"`, detalle, `PATCH` parcial, `PATCH` vacío `400`, baja lógica,
+segunda baja `400`, `/lista-espera` con nombre y DNI resueltos, `quitar` → `retirado`, filtro
+por `estado` y por rango de fechas, y `401` sin token. Usuario, 2 pacientes, 1 entrada y 4
+filas de auditoría del probe se borraron: residuo verificado en **0** para las tres tablas.
+
 **REC-U11 quedó especificada e implementada** (misma sesión, después de las tres anteriores): su
 `## Screens` se escribió desde UCE-REC-29 pasos 1-4 y UCE-REC-28 pasos 1-7, que no estaban
 especificadas —el §Screens sólo la clasificaba como P1 y limitaba el alcance a consultar y
@@ -685,3 +695,10 @@ nombre y no hay endpoint de catálogo (`UC-DIAG-10`), y el orden es el del backe
 fija S5 de `03-shell-frontend.md`; la exige el nivel 1 (UCE-REC-29, precondición de rol
 administrador) y se implementa el flujo del requisito, reportando la divergencia contra la
 autoridad de presentación, como manda `AGENTS.md` §Screen and design authority.
+
+**Evidencia de REC-U11**: 9 casos en `listaEspera.test.tsx` (datos resueltos y ningún UUID
+crudo, vista por defecto en `pendiente`, filtro por estado, filtro por rango de fechas, vacío
+textual de REC-29, confirmación que se puede cancelar sin request, sin acción sobre una entrada
+retirada, error con Reintentar, y redirección de un bioquímico). Con esa pantalla el suite
+queda en **121 passed** (15 archivos), `tsc` 0, `lint` 0 y `build` verde. El backend ya estaba
+probado en vivo para esos dos endpoints (probe de arriba).

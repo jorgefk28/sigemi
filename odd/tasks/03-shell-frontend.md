@@ -202,3 +202,27 @@ prohibida al inicio sin 403 crudo y Atrás del navegador.
 siguen siendo estado de vista dentro de su página, no rutas propias. No es un defecto de esta
 unidad —su contrato no exige enlace directo a un registro— pero cuando se pida, el costo es
 una ruta más y un `GET /usuarios/{id}`; el endpoint ya existe.
+
+### L10 — Endurecimiento del arranque de la SPA (2026-11-16)
+
+Cierra los advisories 3, 4, 5 y 6 del review de T1 (L8), más tres defectos de accesibilidad
+que un back-office siente a diario.
+
+| Cambio | Antes | Ahora |
+|---|---|---|
+| Servidor caído al arrancar | se veía como sesión cerrada y el token quedaba guardado sin explicación | estado `unavailable`: el token se conserva, la pantalla dice «No se pudo conectar con el servidor» y ofrece Reintentar |
+| `sessionStorage` bloqueado o lleno | rompía el arranque o el login | cada acceso va en guarda; sin almacenamiento la sesión vive en memoria y el login no falla |
+| Error de render | pantalla en blanco | `ErrorBoundary` con mensaje accionable y `Recargar`, y el error queda en consola |
+| Título del documento | fijo, `SIGEMI` | `<pantalla> · SIGEMI`, derivado de la ruta |
+| Foco tras navegar | quedaba en el menú | va al `<main>`, así el siguiente Tab entra en el contenido nuevo |
+| Navegación por teclado | había que tabular todo el sidebar | enlace «Ir al contenido» |
+
+**Evidencia**: 9 casos nuevos en `routes/sessionHardening.test.tsx` (token conservado y
+Reintentar, recuperación al segundo intento, `401` que sí descarta, arranque y login con
+`Storage` que lanza, título por pantalla, foco en `main`, enlace de salto, y pantalla de error
+en lugar de blanco). Suite completa: **121 passed** (15 archivos), `tsc` 0, `lint` 0, `build`
+verde.
+
+**Nota de alcance**: `/me` con 5xx o error de red deja el token guardado a propósito. Es la
+diferencia entre «no sé si la sesión vale» y «la sesión no vale»; solo el `401`/`403`
+descarta.
