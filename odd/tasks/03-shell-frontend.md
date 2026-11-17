@@ -232,3 +232,35 @@ verde.
 **Nota de alcance**: `/me` con 5xx o error de red deja el token guardado a propósito. Es la
 diferencia entre «no sé si la sesión vale» y «la sesión no vale»; solo el `401`/`403`
 descarta.
+
+### L11 — Revisión adversarial del frontend y lote de corrección (2026-11-16)
+
+Revisión independiente sobre `99498e4..93609f0` (40 archivos de `frontend/`), contrastada
+contra los schemas y endpoints reales del backend en modo lectura. **CAT1 (defectos de
+corrección que rompen el flujo) = 0**; 4 CAT2 (alto) y 5 CAT3 (medio), todos confirmados.
+
+| ID | Hallazgo | Corrección |
+|---|---|---|
+| F-001 | Vaciar un campo opcional en edición no persistía: el formulario enviaba `null` y `PATCH /pacientes` lo descarta con `exclude_none=True` | se envía `''`, que sobrevive el filtro y `normalizar_optional`/`normalizar_correo` convierten en `NULL` |
+| F-002 | Quitar la última fila de una página dejaba el `offset` fuera de rango: vacío falso («No hay pacientes…») sin paginación para volver | ambos listados retroceden una página cuando el refetch vuelve vacío con `offset > 0` |
+| F-003 | Un `401` de una pantalla mostraba el error genérico con un «Reintentar» que nunca podía funcionar; sólo el arranque manejaba la expiración | señal única en `api/unauthorized.ts`: la capa HTTP la emite en `401` con token y el proveedor de sesión cierra la sesión |
+| F-004 | El test de enlace directo aprobaba por la razón equivocada: el listado fallaba y sólo se verificaba el `h1` | el test mockea el listado y exige una fila renderizada |
+| F-005 | `Dialog` declaraba `aria-modal` sin focus trap, prometía cierre por backdrop sin handler y no devolvía el foco | atrapa `Tab`, cierra por backdrop (sólo si el target es el backdrop) y restaura el foco del que abrió |
+| F-006 | Cambiar el select de estado aplicaba también el texto a medio escribir sin enviar | el select aplica sólo su propio valor sobre lo ya aplicado |
+| F-007 | `navigate(..., { state: { created } })` que nadie leía | eliminado |
+| F-008 | `/login` con token sin verificar pedía credenciales en vez de ofrecer reintento | `SessionUnavailable` compartido por `RequireAuth` y `LoginRoute` |
+| F-009 | La oferta «Abrir la ficha del paciente existente» sobrevivía a la edición del DNI | se limpia al cambiar el DNI |
+
+**Lo que la revisión no encontró**: fugas de autorización en la UI (el gating coincide con
+`require_roles` en las tres rutas sensibles), spinners eternos, rechazos no capturados, y
+ninguna discrepancia de contrato fuera de F-001 (nombres de query params, envelope,
+`204` de `/auth/password` y `400 + campo` coinciden con el backend).
+
+**Evidencia observada** desde `frontend/` sobre el árbol corregido (`b284d80`): `npx tsc
+--noEmit` exit 0; `npm run lint` exit 0; `npm test` → **131 passed** (16 archivos; antes 121/15);
+`npm run build` → `✓ built`. Diez casos nuevos, uno por hallazgo verificable.
+
+**Límite de la verificación**: el rechequeo acotado pedido al mismo revisor fue **denegado por
+el sistema de permisos** (`permission.rejected: subagent`). El rechequeo de los nueve
+hallazgos lo hizo el integrador leyendo el diff y los tests que los pinnean, no un revisor
+independiente: se registra como spot check propio, no como segunda opinión externa.
