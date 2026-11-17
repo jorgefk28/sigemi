@@ -167,12 +167,45 @@ def test_create_persists_and_derives_numero_registro(
     esperado = "PAC-" + payload["id"].replace("-", "")[:8].upper()
     assert payload["numero_registro"] == esperado
     assert re.fullmatch(r"PAC-[0-9A-F]{8}", payload["numero_registro"])
-    assert "sexo" not in payload
+    # A2 (07-frontend-backoffice): ``sexo`` is a level-3 column, so it is exposed.
+    assert payload["sexo"] is None
 
     paciente = db.get(Paciente, payload["id"])
     assert paciente is not None
     assert paciente.dni == "12345678"
     assert _auditorias_of(db, paciente.id) == []  # A7: el alta no audita
+
+
+def test_create_and_update_round_trip_sexo(
+    client: TestClient, db: Session, usuario_factory
+):
+    """A2: ``paciente.sexo`` is a level-3 column and survives alta + edición."""
+    token, _ = _rol_token(client, usuario_factory, ("bioquimico",))
+
+    alta = client.post(
+        PACIENTES_URL,
+        json={
+            "dni": "22.333.444",
+            "nombre": "Ines",
+            "apellido": "Quiroga",
+            "fecha_nacimiento": "1988-04-12",
+            "telefono": "+54 9 376 400-1122",
+            "sexo": "Femenino",
+        },
+        headers=_headers(token),
+    )
+    assert alta.status_code == 201, alta.text
+    payload = alta.json()
+    assert payload["sexo"] == "Femenino"
+    assert db.get(Paciente, payload["id"]).sexo == "Femenino"
+
+    cambio = client.patch(
+        f"{PACIENTES_URL}/{payload['id']}",
+        json={"sexo": "X"},
+        headers=_headers(token),
+    )
+    assert cambio.status_code == 200, cambio.text
+    assert cambio.json()["sexo"] == "X"
 
 
 def test_create_duplicate_dni_is_rejected_with_field(
@@ -349,7 +382,7 @@ def test_list_returns_pagination_envelope(
     assert payload["limit"] == 20
     assert payload["offset"] == 0
     assert [item["apellido"] for item in payload["items"]] == ["Alvarez", "Gonzalez"]
-    assert "sexo" not in payload["items"][0]
+    assert payload["items"][0]["sexo"] is None
 
 
 def test_list_filters_by_estado(client: TestClient, db: Session, usuario_factory):

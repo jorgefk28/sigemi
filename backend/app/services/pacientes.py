@@ -158,6 +158,7 @@ def serializar_paciente(paciente: Paciente) -> PacienteRead:
         nombre=paciente.nombre,
         apellido=paciente.apellido,
         fecha_nacimiento=paciente.fecha_nacimiento,
+        sexo=paciente.sexo,
         domicilio=paciente.domicilio,
         telefono=paciente.telefono,
         correo_electronico=paciente.correo_electronico,

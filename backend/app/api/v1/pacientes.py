@@ -190,6 +190,7 @@ def crear_paciente(
         correo = normalizar_correo(datos.correo_electronico)
         domicilio = normalizar_optional(datos.domicilio)
         obra_social = normalizar_optional(datos.obra_social)
+        sexo = normalizar_optional(datos.sexo)
     except ReglaDePaciente as regla:
         return _rechazo(regla)
 
@@ -212,6 +213,7 @@ def crear_paciente(
         correo_electronico=correo,
         domicilio=domicilio,
         obra_social=obra_social,
+        sexo=sexo,
         nivel_registro=NivelRegistro.COMPLETO.value,
         estado=EstadoActivo.ACTIVO.value,
         fecha_ingreso=utcnow(),
@@ -286,6 +288,9 @@ def actualizar_paciente(
 
         if "obra_social" in enviados:
             normalizados["obra_social"] = normalizar_optional(enviados["obra_social"])
+
+        if "sexo" in enviados:
+            normalizados["sexo"] = normalizar_optional(enviados["sexo"])
     except ReglaDePaciente as regla:
         return _rechazo(regla)
 

@@ -1,10 +1,12 @@
 """Patient schemas (UCE-REC-16/17/18/19, S-01).
 
-``sexo`` is intentionally absent from every schema: no UCE governs it (gap
-G13), so the API neither accepts nor exposes it.  Field-level format rules
-(dni, telefono, correo, fecha_nacimiento) are business validation and answer
-``400`` + ``campo`` from ``app.services.pacientes``; no schema bound pre-empts
-them with the automatic ``422``.
+``sexo`` is a level-3 column of ``paciente`` and the table already stores it, so
+the API accepts and exposes it (reconciliation A2 of
+``odd/tasks/07-frontend-backoffice.md``); it stays optional because level 3
+declares it nullable and UC-REC-15 lets the record be completed later.  The
+field-level format rules (dni, telefono, correo, fecha_nacimiento) are business
+validation and answer ``400`` + ``campo`` from ``app.services.pacientes``; no
+schema bound pre-empts them with the automatic ``422``.
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from app.schemas.access import Paginacion
 
 
 class PacienteRead(BaseModel):
-    """A patient as exposed by the API (level-3 columns, minus ``sexo``)."""
+    """A patient as exposed by the API (level-3 columns)."""
 
     id: uuid.UUID
     numero_registro: str
@@ -26,6 +28,7 @@ class PacienteRead(BaseModel):
     nombre: str
     apellido: str
     fecha_nacimiento: date
+    sexo: str | None
     domicilio: str | None
     telefono: str
     correo_electronico: str | None
@@ -39,10 +42,10 @@ class PacienteCreate(BaseModel):
     """Payload for a new patient (UCE-REC-16, paso 2).
 
     Required: ``dni``, ``nombre``, ``apellido``, ``fecha_nacimiento`` and
-    ``telefono``.  ``domicilio``, ``correo_electronico`` and ``obra_social``
-    are optional.  ``numero_registro``, ``nivel_registro``, ``estado`` and
-    ``fecha_ingreso`` are derived by the service, never accepted from the
-    client.
+    ``telefono``.  ``sexo``, ``domicilio``, ``correo_electronico`` and
+    ``obra_social`` are optional.  ``numero_registro``, ``nivel_registro``,
+    ``estado`` and ``fecha_ingreso`` are derived by the service, never accepted
+    from the client.
     """
 
     dni: str
@@ -50,6 +53,7 @@ class PacienteCreate(BaseModel):
     apellido: str
     fecha_nacimiento: date
     telefono: str
+    sexo: str | None = None
     domicilio: str | None = None
     correo_electronico: str | None = None
     obra_social: str | None = None
@@ -63,6 +67,7 @@ class PacienteUpdate(BaseModel):
     apellido: str | None = None
     fecha_nacimiento: date | None = None
     telefono: str | None = None
+    sexo: str | None = None
     domicilio: str | None = None
     correo_electronico: str | None = None
     obra_social: str | None = None
