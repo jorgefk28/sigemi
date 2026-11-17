@@ -162,3 +162,43 @@ Los tres reviews se corrieron con consentimiento por candidato y `acknowledge-ap
 6. `loadUser` está exportado sin uso: el `USER_KEY` se escribe y nunca se lee.
 
 **Divergencia de presentación pendiente de tu decisión**: el pie del sidebar del prototipo abre un menú desplegable; la implementación usa un botón directo `Cerrar sesión` (razón en L5).
+
+### L9 — Navegación por URL y menú de cuenta (2026-11-16)
+
+**Qué cambió y por qué**: la pantalla activa vivía en `useState` (`Shell`), así que recargar
+volvía al Panel de Control, el botón Atrás salía del sistema y **ninguna pantalla tenía enlace
+directo**. Con 31 pantallas derivadas y ~30 sub-rutas (un formulario, un detalle por registro)
+eso no se sostiene, y hay una necesidad dura: SEG-U07 llega desde un enlace de correo con el
+token en la URL, imposible sin router.
+
+**Dependencia nueva**: `react-router-dom@^7` (~13 kB gzip). Requería aprobación por
+`AGENTS.md` §Application conventions; el dueño la dio el 2026-11-16, junto con la autorización
+para rediseñar la navegación.
+
+**Forma elegida**:
+
+| Pieza | Decisión |
+|---|---|
+| Rutas | `App.tsx` declara la tabla completa; `Shell` es una ruta de layout con `<Outlet/>` |
+| Permiso | `Shell` resuelve la página por **prefijo de path** y redirige al inicio si el rol no la ve; un sub-ruteo hereda el permiso de su módulo sin declararlo otra vez |
+| Path por página | `NavPage.path` en `features/navigation/navigation.ts` (`/panel-control`, `/pacientes`, …) |
+| Login | `/login` es la única entrada anónima; con sesión activa redirige al aterrizaje del rol |
+| Ruta desconocida | ruta splat → redirección al aterrizaje, nunca una pantalla vacía |
+| Cuenta | `ACCOUNT_ROUTES` (`/perfil`, `/perfil/contrasena`): no son páginas del sidebar, son de la cuenta (D3) |
+
+**Sin cambios de comportamiento** en gating por rol: las mismas páginas y los mismos grupos
+para los tres roles; el test de S5 sigue verde sin modificarse.
+
+**Menu de usuario (D3)**: `components/UserMenu.tsx` en el encabezado, con `Mi perfil`.
+«Cerrar sesión» se queda en el pie del sidebar, donde T1 lo fijó con prueba (razón completa en
+L28 de `02-seguridad-acceso.md`).
+
+**Evidencia observada** desde `frontend/`: `npx tsc --noEmit` → exit 0; `npm run lint` → exit
+0; `npm test` → **103 passed**; `npm run build` → `✓ built`. Casos nuevos de esta unidad:
+`routes/routing.test.tsx` (4): enlace directo en carga fría, ruta desconocida al inicio, ruta
+prohibida al inicio sin 403 crudo y Atrás del navegador.
+
+**Deuda declarada**: el formulario de usuario (SEG-U03) y el detalle de auditoría (SEG-U05)
+siguen siendo estado de vista dentro de su página, no rutas propias. No es un defecto de esta
+unidad —su contrato no exige enlace directo a un registro— pero cuando se pida, el costo es
+una ruta más y un `GET /usuarios/{id}`; el endpoint ya existe.

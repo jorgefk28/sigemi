@@ -334,7 +334,7 @@ vigentes del paciente en la excepción del paso 8 — requiere el endpoint de tu
 | T3 | Diseño paso 3: especificación de las 11 pantallas con la plantilla del plan | S1-S10 | — | ⏳ (L4: REC-U05, U06 y U07 especificadas) |
 | T4a | Backend REC de pacientes y lista de espera: REC-16/17/18/19, S-01 y REC-28/29 | S5, S8 | delegated (carril `feat/rec-t4-pacientes`) | ✅ (L5, integrada en `f2076ea`) |
 | T4b | Backend REC de agenda, turnos y asistencia | S6, S7, S9 | — | ⏳ bloqueada por G10-G12 |
-| T5 | Pantallas REC: P1 (REC-U06) y P3 (REC-U05) primero, después las demás instancias | S1-S10 | — | ⏳ |
+| T5 | Pantallas REC: P1 (REC-U06) y P3 (REC-U05) primero, después las demás instancias | S1-S10 | — | ⏳ REC-U06, U05 y U07 entregadas (L6) |
 | T6 | Integración con el Agente IA y WhatsApp: requiere decisión de proveedor | S1, S2, S3, S4 | — | ⛔ bloqueada |
 
 **Risk**: ítem 1 (cambio de esquema persistido) e ítem 3 (contrato que consumen los otros
@@ -551,3 +551,58 @@ del código.
 
 **Próximo paso**: T4b queda bloqueada por G10-G12. Lo que sigue sin bloqueo es terminar el
 paso 3 (REC-U08, U09) y la revisión humana de las tres pantallas ya especificadas.
+
+### L6 — T5a: REC-U06, REC-U05 y REC-U07 en el frontend (2026-11-16)
+
+**Qué se entregó** (`frontend/src`, sobre `main`, commits `bbbe091` + `c03066b`):
+
+| Pantalla | Ruta | Archivo |
+|---|---|---|
+| REC-U06 · Listado de pacientes (P1) | `/pacientes` | `features/recepcion/PacientesListPage.tsx` |
+| REC-U05 · Formulario de paciente (P3) | `/pacientes/nuevo` · `/pacientes/:id/editar` | `features/recepcion/PacienteFormPage.tsx` |
+| REC-U07 · Detalle de paciente (P2) | `/pacientes/:id` | `features/recepcion/PacienteDetallePage.tsx` |
+
+Las tres consumen los endpoints de T4a (`pacientes.py`, L5) sin tocar el backend. Se
+apoyan en las primitivas que el subsistema comparte con SEG: `DataTable` (con
+`highlightedRowKey` para la única coincidencia), `FilterBar`, `Pagination`, `FormField`
+con `campo` y `Dialog`.
+
+**Decisiones de presentación registradas**:
+
+1. **Una sola coincidencia se resalta y no navega** (S-01 paso 4a). El listado muestra el
+   aviso «Una sola coincidencia: usá «Ver» para abrir la ficha» y la fila resaltada. Navegar
+   solo rompería el contrato de S-01: el dato tiene que volver al UCE invocante.
+2. **`sexo` no aparece** (G13: ningún UCE lo pide) y **la edad no es columna** (REC-18 paso 6
+   nombra «Datos Personales»). Tampoco se inventa `numero_registro`, `estado`, `fecha_ingreso`
+   ni `nivel_registro`: los deriva la aplicación (nivel 2 decisión 7).
+3. **La fecha de nacimiento no se deshabilita de antemano** en REC-U05, aunque el §Screens lo
+   pide para el paciente con análisis. `PacienteRead` no expone si el paciente tiene análisis
+   y no hay endpoint que lo diga, así que la UI no puede decidir ese estado sin inventarlo: el
+   campo queda habilitado, con la regla como pista, y el `400` con `campo="fecha_nacimiento"`
+   del backend se muestra en el campo. **Es un supuesto registrado, no una divergencia
+   silenciosa**; se cierra cuando exista el endpoint de análisis (T4b/DIAG).
+4. **«Desactivar» se ofrece sólo a `administrador`** (precondición de REC-19), con el motivo
+   obligatorio en un diálogo y `Confirmar` deshabilitado sin motivo. Un `400` de negocio
+   («turnos vigentes») se informa dentro del diálogo y lo deja abierto: no es un error de
+   transporte.
+5. **Las tres secciones de historial declaran su estado real.** Sin endpoint de ficha
+   clínica ni de informes, la pantalla dice «Pendiente: todavía no hay endpoint…» y, para
+   análisis, el vacío que el §Screens fija («Sin análisis registrados»). No se fabrican filas.
+6. **Un DNI repetido en el alta ofrece abrir la ficha existente en modo edición**
+   (REC-16 exc. paso 4): el formulario consulta `GET /pacientes?dni=…&limit=1` y navega.
+
+**Fuera de alcance respetado**: la baja desde el listado (vive en REC-U07, REC-19), el alta
+por WhatsApp (REC-09), `sexo`, y el listado de turnos vigentes dentro de la excepción del
+paso 8 de REC-19 (necesita T4b).
+
+**Evidencia observada** desde `frontend/`: `npx tsc --noEmit` → exit 0; `npm run lint` →
+exit 0; `npm test` → **103 passed** (13 archivos); `npm run build` → `✓ built`. Casos nuevos:
+25 (`pacientesListado.test.tsx` 9, `pacienteFormulario.test.tsx` 9,
+`pacienteDetalle.test.tsx` 7). El comportamiento previo tocado —el listado de SEG y el
+placeholder de las páginas sin pantalla— sigue verde: el caso que usaba «Pacientes» como
+ejemplo de placeholder se movió a «Análisis», que es el que sigue sin especificación.
+
+**Pendiente de decisión del dueño**: REC-U11 (lista de espera) tiene backend (L5) pero **no
+tiene especificación** en `## Screens`: el §Screens sólo la clasifica (P1) y limita el alcance
+a consultar y quitar, porque la vía manual de REC-23 es el hueco G8. Sin el paso 3 escrito no
+se implementa, por la regla de `AGENTS.md` §Screen and design authority.

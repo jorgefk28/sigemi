@@ -753,7 +753,7 @@ construye esas cuatro primitivas en SEG-U02 y SEG-U03.
 | T2 | API de autenticación: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `get_current_user`, `require_roles`, wiring del router | S1, S4, S5 | delegated | ✅ |
 | T3 | CRUD de usuarios y asignación de roles (solo `administrador`), con auditoría de cada alta/baja/modificación | S1, S2, S3, S6 | inline | ✅ |
 | T4 | Inventario y especificación de las pantallas de SEG (pasos 1-4 de `odd/design/screen-design-plan.md`). Aprobada por el dueño el 2026-11-12 (L21) | S1, S6 | — | ✅ |
-| T5 | Implementación de las pantallas de SEG (patrones P1 y P3). **SEG-U02, SEG-U03, SEG-U04 y SEG-U05 entregadas** (L23 en `c033122`; L25 en `98f9a73`); SEG-U06, U07 y U09 esperan T8, D5 y SMTP; SEG-U08 espera D3 | S1, S6 | delegated | ⏳ |
+| T5 | Implementación de las pantallas de SEG (patrones P1 y P3). **SEG-U01, U02, U03, U04, U05, U08 y U09 entregadas** (L23 en `c033122`; L25 en `98f9a73`; L28 en `31a0de8`); SEG-U06 y U07 esperan T8, D5 y SMTP | S1, S6 | delegated | ✅ (L28) |
 | T6 | Endurecer T3 según el review nativo: traducir la carrera de unicidad de correo y de reemplazo de roles a `400` con `campo`, pinear `direccion_ip` en las filas de auditoría, y validar el formato del correo con `400` + `campo` (UCE–SEG-02, excepción del paso 6; L24) | S1, S2 | delegated | ✅ (L25, integrada en `d160cd9`) |
 | T7 | Backend de auditoría (G1): `GET /api/v1/auditoria` y `GET /api/v1/auditoria/{id}`, solo `administrador`, con filtros `usuario_id`, `fecha_desde`, `fecha_hasta` y `accion` | S2 | delegated | ✅ (L22, integrada en `6f5113b`) |
 | T8 | Backend de contraseñas (G2): `POST /api/v1/auth/password`; `POST /api/v1/auth/recuperacion` y `/confirmar` quedan sujetos a D5 (token) y a la aprobación de la dependencia SMTP | S1, S6 | — | ⏳ (parte 1 ✅, L27) |
@@ -1353,3 +1353,28 @@ Ningún carril editó `## Specs`, `## Screens`, `## Tasks` ni `## Log`: el integ
 - **Gates observados por el integrador** desde `backend/` del worktree: `pytest` → `405 passed, 1 warning`; `ruff check .` → `All checks passed!`; `ruff format --check .` → `52 files already formatted`. El carril no pudo correrlos (`shell` denegada al subagente con `permission.rejected`), así que la evidencia la produjo el integrador antes de commitear, no el carril.
 - El comportamiento previo tocado (`validar_contrasena` con su mensaje y `campo="contrasena"` por defecto) queda cubierto por la suite existente de `test_usuarios.py`, que la firma nueva no altera.
 - **Integración**: merge `aa9f852` (`--no-ff`, 2026-11-16) sobre `9d25741`. Sobre el árbol integrado: `pytest` → `445 passed, 1 warning` (T8 parte 1 más el carril REC T4a), `ruff check .` → `All checks passed!`, `ruff format --check .` → `60 files already formatted`. `router.py` no requirió resolución: el carril no lo tocó, igual que el de REC.
+
+### L28 — Evidencia de T5: SEG-U08 y SEG-U09 en el frontend (2026-11-16)
+
+**Qué se entregó** (`frontend/src`, sobre `main`):
+
+| Pantalla | Ruta | Archivo |
+|---|---|---|
+| SEG-U08 · Mi perfil (P2) | `/perfil` | `features/profile/ProfilePage.tsx` |
+| SEG-U09 · Cambiar contraseña (P3) | `/perfil/contrasena` | `features/profile/ChangePasswordPage.tsx` |
+
+**Por qué se desbloquearon**:
+
+- **SEG-U09 ya no esperaba a T8**: `POST /api/v1/auth/password` existe en `main` desde `5aedf48` (L27). La pantalla consume el `204` sin cuerpo y coloca el `400` con `campo` en el campo (la contraseña actual incorrecta y las cuatro reglas de S6), sin decidir ninguna de esas reglas.
+- **SEG-U08 esperaba D3**, y D3 está decidido desde L21 (§4: «Mi perfil» por menú del usuario en el header). Se implementó así: el menú del encabezado (`components/UserMenu.tsx`) es la única entrada.
+
+**Decisiones de presentación registradas**:
+
+1. **«Cerrar sesión» queda en el pie del sidebar, no en el menú.** D3 lo enumera dentro del desplegable; se mantiene donde T1 lo fijó con prueba (`session/auth.test.tsx` busca un botón accesible sin abrir un menú). El menú del header ofrece `Mi perfil` y nada más: duplicar la acción le daría dos vidas distintas al mismo control.
+2. **`/perfil` y `/perfil/contrasena` no son páginas del sidebar.** Se declaran en `ACCOUNT_ROUTES` (`features/navigation/navigation.ts`) con sección `Mi cuenta`; el sidebar sigue siendo el mapa de módulos de negocio, como pide D3.
+3. **El perfil no edita nada.** Ningún paso de UCE-SEG-08 lo pide y la modificación de datos es de UCE-SEG-02 (administrador). Se muestran los cuatro bloques del §Screens y todos los roles, no el primero (R4).
+4. **Un `401`/`403` de `/auth/me` en el perfil cierra la sesión** en lugar de mostrar «sin permiso»: es la cuenta propia, no hay 403 que mostrar (R2 del §Screens: «no aplica»).
+
+**Dependencia nueva del frontend**: `react-router-dom@^7` (aprobada por el dueño el 2026-11-16, junto con la autorización para rediseñar la navegación). El motivo está en L9 de `03-shell-frontend.md`.
+
+**Evidencia observada** desde `frontend/`: `npx tsc --noEmit` → exit 0; `npm run lint` → exit 0; `npm test` → **103 passed** (13 archivos); `npm run build` → `✓ built`. Los dos archivos nuevos quedan cubiertos por `features/profile/perfil.test.tsx` (8 casos: datos y roles, entrada por el menú, reintento, navegación a U09, `204` + body exacto, `400` con `campo` en el campo, igualdad de contraseñas sin request, alcance para administrador).
