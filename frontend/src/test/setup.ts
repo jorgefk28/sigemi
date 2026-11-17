@@ -5,7 +5,7 @@ import { afterEach, vi } from 'vitest';
 // Same reason as `testTimeout` in `vite.config.ts`: on a cold Windows
 // filesystem a `findBy*` callback can take more than the 1 s default, and the
 // failure would be reported as a missing element instead of a slow machine.
-configure({ asyncUtilTimeout: 5000 });
+configure({ asyncUtilTimeout: 8000 });
 
 afterEach(() => {
   cleanup();
