@@ -182,6 +182,8 @@ export function Workspace({ onLogout }: { onLogout: () => void }) {
     if (filtroEstado && a.estado !== filtroEstado) return false;
     if (filtroMuestra && a.tipoMuestra !== filtroMuestra) return false;
     if (filtroBioquimico && a.bioquimico !== filtroBioquimico) return false;
+    // The date input was rendered but never read; `yyyy-mm-dd` vs `dd/mm/yyyy`.
+    if (filtroFecha && a.fechaIngreso.split("/").reverse().join("-") !== filtroFecha) return false;
     return true;
   });
 

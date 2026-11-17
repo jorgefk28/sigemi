@@ -123,18 +123,37 @@ Frontend (`frontend/`):
 
 - `npx tsc --noEmit`: sin errores.
 - `npm run lint`: sin errores.
-- `npm test`: 4 archivos, 20 pruebas en verde (16 heredadas de la capa API/sesión y 4 nuevas de
-  humo de pantallas).
+- `npm test`: 4 archivos, 21 pruebas en verde (16 heredadas de la capa API/sesión y 5 nuevas de
+  humo: panel inicial, listado de pacientes, auditoría, recorrido de los 12 módulos sin
+  excepción y ocultamiento de Administración para un rol no administrador).
 - `npm run build`: compila; 522 kB de bundle (aviso de tamaño, no error).
 
 Backend (`backend/`):
 
 - `pytest tests/test_rec_pacientes.py`: 30 pruebas en verde, incluidas las dos aserciones que
   fijaban la ausencia de `sexo` y la prueba nueva de ida y vuelta de `sexo` en alta y edición.
-- `pytest` completo: pendiente de registrar en este documento.
-- `ruff check .`: pendiente de registrar en este documento.
+- `pytest` completo: 500 recolectadas, 491 en verde, 9 en rojo.
+- `ruff check .` y `ruff format --check .`: sin errores, 80 archivos ya formateados.
 
-### L4 — Qué queda abierto (2026-11-17)
+**Las 9 fallas de `tests/test_usuarios.py` son ambientales, no una regresión de esta entrega.**
+Todas son conteos de filas sobre `usuario` (`3 == 2`, `2 == 1`) y la base de desarrollo tiene una
+fila ya comprometida fuera de las pruebas: `admin@sigemi.local`, creada en una sesión anterior para
+poder entrar al sistema (no hay alta de primer administrador en la API). Verificado con el
+`backend/` de esta rama revertido por `git stash`: `test_list_returns_pagination_envelope` falla
+igual sin los cambios. La fila no se borra: es la cuenta con la que el dueño inicia sesión.
+
+### L4 — Correcciones de comportamiento en la entrega (2026-11-17)
+
+Dos defectos visibles del repositorio entregado se corrigieron, porque una pantalla que muestra un
+control que no hace nada es peor que el demo:
+
+1. El filtro por fecha del Panel de Análisis se renderizaba y nunca se leía: el predicado sólo
+   miraba estado, muestra y bioquímico. Ahora compara `dd/mm/yyyy` contra el `yyyy-mm-dd` del
+   `<input type="date">`.
+2. El selector de rol del sidebar era una simulación del prototipo (`roleStore` con tres usuarios
+   ficticios). Se reemplazó por los roles reales de `GET /auth/me` y la acción «Cerrar sesión».
+
+### L5 — Qué queda abierto (2026-11-17)
 
 T5 queda bloqueada por decisión del dueño, no por capacidad: ver A-17 en
 `odd/DECISIONES-AUTONOMAS.md`. Las dos extensiones que la cierran son (1) el catálogo clínico de
