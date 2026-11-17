@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ApiError } from '../../api/http';
 import { deactivatePaciente, getPaciente, type Paciente } from '../../api/pacientes';
 import { listFichas, type FichaClinica } from '../../api/fichas';
+import { ESTADO_LABELS, listAnalisis, type Analisis } from '../../api/analisis';
 import { Btn } from '../../components/Btn';
 import { Dialog } from '../../components/Dialog';
 import { FormField, INPUT_CLASSES, fieldDescribedBy } from '../../components/FormField';
@@ -84,6 +85,11 @@ export function PacienteDetallePage() {
   const [fichasError, setFichasError] = useState(false);
   const [fichasAttempt, setFichasAttempt] = useState(0);
 
+  const [analisis, setAnalisis] = useState<Analisis[]>([]);
+  const [analisisLoading, setAnalisisLoading] = useState(true);
+  const [analisisError, setAnalisisError] = useState(false);
+  const [analisisAttempt, setAnalisisAttempt] = useState(0);
+
   const isAdmin = user?.roles.includes('administrador') ?? false;
   // Writing a clinical record is bioquimico-only (A-12 of the decision log).
   const puedeEscribir = user?.roles.includes('bioquimico') ?? false;
@@ -119,6 +125,38 @@ export function PacienteDetallePage() {
       cancelled = true;
     };
   }, [pacienteId, token, fichasAttempt]);
+
+  // DIAG-06 paso 6: the patient's analyses with their current state.
+  useEffect(() => {
+    if (!pacienteId) {
+      return;
+    }
+    let cancelled = false;
+    setAnalisisLoading(true);
+    setAnalisisError(false);
+
+    listAnalisis(token, { paciente_id: pacienteId, limit: 20 })
+      .then((pagina) => {
+        if (!cancelled) {
+          setAnalisis(pagina.items);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAnalisis([]);
+          setAnalisisError(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setAnalisisLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pacienteId, token, analisisAttempt]);
 
   useEffect(() => {
     if (!pacienteId) {
@@ -302,7 +340,49 @@ export function PacienteDetallePage() {
       </Seccion>
 
       <Seccion titulo="Análisis micológicos">
-        <p className="text-sm text-muted">Sin análisis registrados</p>
+        {analisisLoading ? (
+          <p className="text-sm text-muted">Cargando…</p>
+        ) : analisisError ? (
+          <div>
+            <p className="text-sm text-gray-800">No se pudieron cargar los análisis</p>
+            <Btn className="mt-2" onClick={() => setAnalisisAttempt((valor) => valor + 1)}>
+              Reintentar
+            </Btn>
+          </div>
+        ) : analisis.length === 0 ? (
+          <p className="text-sm text-muted">Sin análisis registrados</p>
+        ) : (
+          <ul aria-label="Análisis del paciente" className="divide-y divide-gray-100">
+            {analisis.map((fila) => (
+              <li key={fila.id} className="flex items-center justify-between gap-3 py-2">
+                <div>
+                  <p className="text-sm text-gray-800">
+                    {fila.tipo_analisis_nombre} · {fila.tipo_muestra_nombre}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {formatFechaHora(fila.fecha_creacion)} · {ESTADO_LABELS[fila.estado] ?? fila.estado}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={`Ver el análisis de ${fila.tipo_analisis_nombre}`}
+                  className="text-xs font-medium text-brand hover:underline"
+                  onClick={() => navigate(`/analisis/${fila.id}`)}
+                >
+                  Ver
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {puedeEscribir && (
+          <Btn
+            className="mt-3"
+            onClick={() => navigate(`/pacientes/${paciente.id}/muestras/nueva`)}
+          >
+            Ingresar Muestra
+          </Btn>
+        )}
       </Seccion>
 
       <Seccion titulo="Resultados">

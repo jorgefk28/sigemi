@@ -19,6 +19,7 @@ const ME_URL = '/api/v1/auth/me';
 const DETAIL_URL = '/api/v1/pacientes/p-ana';
 const BAJA_URL = '/api/v1/pacientes/p-ana/baja';
 const FICHAS_URL = '/api/v1/fichas-clinicas?paciente_id=p-ana&limit=20&offset=0';
+const ANALISIS_PACIENTE_URL = '/api/v1/analisis?paciente_id=p-ana&limit=20&offset=0';
 
 const fichaFixture = {
   id: 'f-1',
@@ -48,6 +49,7 @@ function renderDetail(
     [ME_URL]: jsonRoute(user),
     [DETAIL_URL]: jsonRoute(pacienteActivo),
     [FICHAS_URL]: jsonRoute(fichasPage()),
+    [ANALISIS_PACIENTE_URL]: jsonRoute({ items: [], total: 0, limit: 20, offset: 0 }),
     ...extraRoutes,
   });
   render(<App />);

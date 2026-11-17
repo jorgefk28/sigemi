@@ -17,6 +17,9 @@ import { PacientesListPage } from './features/recepcion/PacientesListPage';
 import { CatalogosPage } from './features/catalogos/CatalogosPage';
 import { FichaFormPage } from './features/diagnostico/FichaFormPage';
 import { FichaDetallePage } from './features/diagnostico/FichaDetallePage';
+import { PanelAnalisisPage } from './features/diagnostico/PanelAnalisisPage';
+import { AnalisisDetallePage } from './features/diagnostico/AnalisisDetallePage';
+import { MuestraFormPage } from './features/diagnostico/MuestraFormPage';
 import { ListaEsperaPage } from './features/recepcion/ListaEsperaPage';
 import { IndicacionesListPage } from './features/recepcion/IndicacionesListPage';
 import { IndicacionFormPage } from './features/recepcion/IndicacionFormPage';
@@ -94,7 +97,8 @@ export function App() {
           >
             <Route path="/panel-control" element={<DashboardPage />} />
             <Route path="/agenda" element={<PlaceholderPage title="Agenda y Turnos" />} />
-            <Route path="/analisis" element={<PlaceholderPage title="Análisis" />} />
+            <Route path="/analisis" element={<PanelAnalisisPage />} />
+            <Route path="/analisis/:analisisId" element={<AnalisisDetallePage />} />
             <Route path="/resultados" element={<PlaceholderPage title="Resultados" />} />
             <Route path="/insumos" element={<PlaceholderPage title="Insumos y Stock" />} />
             <Route path="/residuos" element={<PlaceholderPage title="Control de Residuos" />} />
@@ -126,6 +130,7 @@ export function App() {
               path="/pacientes/:pacienteId/fichas/:fichaId/editar"
               element={<FichaFormPage />}
             />
+            <Route path="/pacientes/:pacienteId/muestras/nueva" element={<MuestraFormPage />} />
 
             {/* SEG-U02..U05 */}
             <Route path="/usuarios" element={<UsuariosRoute />} />
