@@ -11,6 +11,32 @@ import { API_BASE_URL } from './config';
 
 export const NETWORK_ERROR_MESSAGE = 'No se pudo conectar con el servidor';
 
+/** Response envelope every list endpoint answers (`AGENTS.md`). */
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * Build a query string, dropping the filters that were not applied. Every list
+ * endpoint names its filters after the level-3 column, so the caller passes the
+ * field name straight through.
+ */
+export function buildQuery(
+  params: Record<string, string | number | undefined | null>,
+): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+    search.set(key, String(value));
+  }
+  return search.toString();
+}
+
 /** A failed request: HTTP status plus, when present, the offending field. */
 export class ApiError extends Error {
   readonly status?: number;

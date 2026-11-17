@@ -23,6 +23,11 @@ interface DataTableProps<T> {
   rowKey: (row: T) => string;
   loading?: boolean;
   skeletonRows?: number;
+  /**
+   * Row that must stand out as the only match of a search. It is highlighted,
+   * never auto-selected: the invoking use case decides what to do with it.
+   */
+  highlightedRowKey?: string;
 }
 
 export function DataTable<T>({
@@ -32,6 +37,7 @@ export function DataTable<T>({
   rowKey,
   loading = false,
   skeletonRows = 4,
+  highlightedRowKey,
 }: DataTableProps<T>) {
   return (
     <table
@@ -63,15 +69,25 @@ export function DataTable<T>({
                 ))}
               </tr>
             ))
-          : rows.map((row) => (
-              <tr key={rowKey(row)} className="border-b border-gray-100 last:border-0">
-                {columns.map((column) => (
-                  <td key={column.key} className="px-3 py-2 text-gray-800">
-                    {column.render(row)}
-                  </td>
-                ))}
-              </tr>
-            ))}
+          : rows.map((row) => {
+              const key = rowKey(row);
+              const highlighted = highlightedRowKey !== undefined && key === highlightedRowKey;
+              return (
+                <tr
+                  key={key}
+                  className={[
+                    'border-b border-gray-100 last:border-0',
+                    highlighted ? 'bg-blue-50' : '',
+                  ].join(' ')}
+                >
+                  {columns.map((column) => (
+                    <td key={column.key} className="px-3 py-2 text-gray-800">
+                      {column.render(row)}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
       </tbody>
     </table>
   );

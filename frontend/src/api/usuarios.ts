@@ -1,5 +1,5 @@
 import type { User } from './auth';
-import { apiRequest } from './http';
+import { apiRequest, type Paginated } from './http';
 
 /**
  * User and role administration API (UCE-SEG-02).
@@ -10,12 +10,7 @@ import { apiRequest } from './http';
  */
 
 /** Response envelope every list endpoint answers (`AGENTS.md`). */
-export interface Paginated<T> {
-  items: T[];
-  total: number;
-  limit: number;
-  offset: number;
-}
+export type { Paginated } from './http';
 
 /** One row of the closed role catalog. */
 export interface Rol {

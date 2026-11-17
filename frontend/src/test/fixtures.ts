@@ -28,18 +28,25 @@ export function jsonRoute(body: unknown, status = 200): () => Promise<Response> 
   return () => Promise.resolve(jsonResponse(body, status));
 }
 
+/** A route answers either a fixed `Response` or a factory that builds one. */
+export type RouteHandler = (url: string, init?: RequestInit) => Promise<Response>;
+
 /**
  * Stub global `fetch` with a URL router. Values may be a `Response` or a
- * factory returning one (or rejecting). Unexpected URLs reject.
+ * factory returning one (or rejecting). A factory receives the URL and the
+ * request init, so a route can answer `GET` and `PATCH` differently.
+ * Unexpected URLs reject.
  */
-export function stubFetchRouter(routes: Record<string, Response | (() => Promise<Response>)>) {
-  const mock = vi.fn((input: unknown, _init?: unknown): Promise<Response> => {
+export function stubFetchRouter(routes: Record<string, Response | RouteHandler>) {
+  const mock = vi.fn((input: unknown, init?: unknown): Promise<Response> => {
     const url = String(input);
     const route = routes[url];
     if (route === undefined) {
       return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
     }
-    return typeof route === 'function' ? route() : Promise.resolve(route);
+    return typeof route === 'function'
+      ? route(url, init as RequestInit | undefined)
+      : Promise.resolve(route);
   });
   vi.stubGlobal('fetch', mock);
   return mock;

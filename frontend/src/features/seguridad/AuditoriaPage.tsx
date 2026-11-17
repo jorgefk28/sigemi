@@ -13,6 +13,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { FilterBar } from '../../components/FilterBar';
 import { Pagination } from '../../components/Pagination';
 import { loadToken } from '../../session/sessionStore';
+import { formatFechaHora } from '../../lib/format';
 import { AuditoriaDetallePage } from './AuditoriaDetallePage';
 
 /**
@@ -57,20 +58,7 @@ export function accionLabel(codigo: string): string {
 }
 
 /** R4: ISO-8601 UTC rendered as the viewer's local `dd/MM/yyyy HH:mm`. */
-export function formatFechaHora(iso: string): string {
-  const fecha = new Date(iso);
-  const parteFecha = new Intl.DateTimeFormat('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(fecha);
-  const parteHora = new Intl.DateTimeFormat('es-AR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(fecha);
-  return `${parteFecha} ${parteHora}`;
-}
+export { formatFechaHora };
 
 type View = { mode: 'list' } | { mode: 'detail'; id: string };
 

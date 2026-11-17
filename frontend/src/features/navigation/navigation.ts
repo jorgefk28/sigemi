@@ -106,7 +106,9 @@ export function findPage(id: string): NavPage | undefined {
 
 /** Page that owns a URL path, when the path is one of the module pages. */
 export function pageByPath(pathname: string): NavPage | undefined {
-  return PAGES.find((page) => page.path === pathname);
+  return PAGES.find(
+    (page) => pathname === page.path || pathname.startsWith(`${page.path}/`),
+  );
 }
 
 /** Account screen that owns a URL path, when there is one. */

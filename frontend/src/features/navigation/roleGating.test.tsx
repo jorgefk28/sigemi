@@ -139,14 +139,15 @@ describe('dashboard landing (S7)', () => {
     expect(screen.getByText(/Última actualización: \d{2}:\d{2}/)).toBeInTheDocument();
   });
 
-  it('renders a placeholder, not fabricated content, for other pages', async () => {
+  it('renders a placeholder, not fabricated content, for pages without a screen', async () => {
     renderAs(['bioquimico']);
 
-    await screen.findByRole('button', { name: 'Pacientes' });
+    await screen.findByRole('button', { name: 'Análisis' });
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Pacientes' }));
+    // `Análisis` belongs to a subsystem that has no specification yet.
+    await user.click(screen.getByRole('button', { name: 'Análisis' }));
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Pacientes' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Análisis' })).toBeInTheDocument();
     expect(screen.getByText('Pantalla pendiente de implementación.')).toBeInTheDocument();
   });
 });
