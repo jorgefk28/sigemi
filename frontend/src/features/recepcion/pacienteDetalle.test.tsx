@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from '../../App';
 import { jsonResponse, jsonRoute, stubFetchRouter, userFixture, type RouteHandler } from '../../test/fixtures';
@@ -18,6 +18,25 @@ const TOKEN_KEY = 'sigemi.access_token';
 const ME_URL = '/api/v1/auth/me';
 const DETAIL_URL = '/api/v1/pacientes/p-ana';
 const BAJA_URL = '/api/v1/pacientes/p-ana/baja';
+const FICHAS_URL = '/api/v1/fichas-clinicas?paciente_id=p-ana&limit=20&offset=0';
+
+const fichaFixture = {
+  id: 'f-1',
+  paciente_id: 'p-ana',
+  paciente_apellido: 'García',
+  paciente_nombre: 'Ana',
+  paciente_dni: '30123456',
+  profesional_id: 'prof-1',
+  profesional_nombre: 'Ada Bioquímica',
+  fecha_consulta: '2026-11-02T10:30:00Z',
+  version_actual: 2,
+  estado: 'activa',
+  datos: { motivo_consulta: 'Uña con mancha', sintomas: 'Prurito' },
+};
+
+function fichasPage(items: unknown[] = [fichaFixture]) {
+  return { items, total: items.length, limit: 20, offset: 0 };
+}
 
 function renderDetail(
   user = { ...userFixture, roles: ['bioquimico'] },
@@ -28,6 +47,7 @@ function renderDetail(
   const fetchMock = stubFetchRouter({
     [ME_URL]: jsonRoute(user),
     [DETAIL_URL]: jsonRoute(pacienteActivo),
+    [FICHAS_URL]: jsonRoute(fichasPage()),
     ...extraRoutes,
   });
   render(<App />);
@@ -48,16 +68,31 @@ describe('REC-U07 detalle de paciente', () => {
     expect(within(datos).getAllByText('OSDE')).toHaveLength(1);
   });
 
-  it('states the truth about the sections that have no endpoint yet', async () => {
+  it('shows the consultation history instead of a pending notice (DIAG-06 paso 4)', async () => {
     renderDetail();
 
     await screen.findByLabelText('Datos personales');
 
-    // REC-U07 states: without analyses it says so, never sample data.
-    expect(screen.getByText('Sin análisis registrados')).toBeInTheDocument();
+    // REC-U07 hosts DIAG-06: the records of the patient, newest first.
+    expect(await screen.findByText(/Ada Bioquímica/)).toBeInTheDocument();
+    expect(screen.getByText('Versión 2 · Ada Bioquímica')).toBeInTheDocument();
     expect(
-      screen.getByText('Pendiente: todavía no hay endpoint que exponga la ficha clínica.'),
+      screen.getByRole('button', { name: /Ver la consulta del/ }),
     ).toBeInTheDocument();
+    // Without analyses the section says so, never sample data.
+    expect(screen.getByText('Sin análisis registrados')).toBeInTheDocument();
+  });
+
+  it('offers Nueva consulta to a biochemist and not to an administrator (A-12)', async () => {
+    renderDetail();
+
+    await screen.findByLabelText('Datos personales');
+    expect(screen.getByRole('button', { name: 'Nueva consulta' })).toBeInTheDocument();
+
+    cleanup();
+    renderDetail(adminSession, { [FICHAS_URL]: jsonRoute(fichasPage()) });
+    await screen.findByLabelText('Datos personales');
+    expect(screen.queryByRole('button', { name: 'Nueva consulta' })).not.toBeInTheDocument();
   });
 
   it('hides Desactivar from a biochemist (R2)', async () => {

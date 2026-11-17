@@ -15,6 +15,8 @@ import { PacienteDetallePage } from './features/recepcion/PacienteDetallePage';
 import { PacienteFormPage } from './features/recepcion/PacienteFormPage';
 import { PacientesListPage } from './features/recepcion/PacientesListPage';
 import { CatalogosPage } from './features/catalogos/CatalogosPage';
+import { FichaFormPage } from './features/diagnostico/FichaFormPage';
+import { FichaDetallePage } from './features/diagnostico/FichaDetallePage';
 import { ListaEsperaPage } from './features/recepcion/ListaEsperaPage';
 import { IndicacionesListPage } from './features/recepcion/IndicacionesListPage';
 import { IndicacionFormPage } from './features/recepcion/IndicacionFormPage';
@@ -109,6 +111,21 @@ export function App() {
             <Route path="/indicaciones" element={<IndicacionesListPage />} />
             <Route path="/indicaciones/nueva" element={<IndicacionFormPage />} />
             <Route path="/indicaciones/:indicacionId/editar" element={<IndicacionFormPage />} />
+
+            {/* DIAG-U03, DIAG-U04: the record lives under the patient, so the
+                module permission is inherited without a new nav page. */}
+            <Route
+              path="/pacientes/:pacienteId/fichas/nueva"
+              element={<FichaFormPage />}
+            />
+            <Route
+              path="/pacientes/:pacienteId/fichas/:fichaId"
+              element={<FichaDetallePage />}
+            />
+            <Route
+              path="/pacientes/:pacienteId/fichas/:fichaId/editar"
+              element={<FichaFormPage />}
+            />
 
             {/* SEG-U02..U05 */}
             <Route path="/usuarios" element={<UsuariosRoute />} />

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ApiError } from '../../api/http';
 import { deactivatePaciente, getPaciente, type Paciente } from '../../api/pacientes';
+import { listFichas, type FichaClinica } from '../../api/fichas';
 import { Btn } from '../../components/Btn';
 import { Dialog } from '../../components/Dialog';
 import { FormField, INPUT_CLASSES, fieldDescribedBy } from '../../components/FormField';
@@ -78,7 +79,46 @@ export function PacienteDetallePage() {
   const [motivoError, setMotivoError] = useState<string | null>(null);
   const [deactivating, setDeactivating] = useState(false);
 
+  const [fichas, setFichas] = useState<FichaClinica[]>([]);
+  const [fichasLoading, setFichasLoading] = useState(true);
+  const [fichasError, setFichasError] = useState(false);
+  const [fichasAttempt, setFichasAttempt] = useState(0);
+
   const isAdmin = user?.roles.includes('administrador') ?? false;
+  // Writing a clinical record is bioquimico-only (A-12 of the decision log).
+  const puedeEscribir = user?.roles.includes('bioquimico') ?? false;
+
+  // DIAG-06 paso 4: the patient's records, newest first.
+  useEffect(() => {
+    if (!pacienteId) {
+      return;
+    }
+    let cancelled = false;
+    setFichasLoading(true);
+    setFichasError(false);
+
+    listFichas(token, { paciente_id: pacienteId, limit: 20 })
+      .then((pagina) => {
+        if (!cancelled) {
+          setFichas(pagina.items);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFichas([]);
+          setFichasError(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setFichasLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pacienteId, token, fichasAttempt]);
 
   useEffect(() => {
     if (!pacienteId) {
@@ -217,9 +257,48 @@ export function PacienteDetallePage() {
       </section>
 
       <Seccion titulo="Historial de consultas">
-        <p className="text-sm text-muted">
-          Pendiente: todavía no hay endpoint que exponga la ficha clínica.
-        </p>
+        {fichasLoading ? (
+          <p className="text-sm text-muted">Cargando…</p>
+        ) : fichasError ? (
+          <div>
+            <p className="text-sm text-gray-800">No se pudo cargar el historial</p>
+            <Btn className="mt-2" onClick={() => setFichasAttempt((valor) => valor + 1)}>
+              Reintentar
+            </Btn>
+          </div>
+        ) : fichas.length === 0 ? (
+          <p className="text-sm text-muted">Sin consultas registradas</p>
+        ) : (
+          <ul aria-label="Consultas registradas" className="divide-y divide-gray-100">
+            {fichas.map((ficha) => (
+              <li key={ficha.id} className="flex items-center justify-between gap-3 py-2">
+                <div>
+                  <p className="text-sm text-gray-800">
+                    {formatFechaHora(ficha.fecha_consulta)}
+                  </p>
+                  <p className="text-xs text-muted">
+                    Versión {ficha.version_actual} · {ficha.profesional_nombre}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={`Ver la consulta del ${formatFechaHora(ficha.fecha_consulta)}`}
+                  className="text-xs font-medium text-brand hover:underline"
+                  onClick={() =>
+                    navigate(`/pacientes/${paciente.id}/fichas/${ficha.id}`)
+                  }
+                >
+                  Ver
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {puedeEscribir && (
+          <Btn className="mt-3" variant="primary" onClick={() => navigate(`/pacientes/${paciente.id}/fichas/nueva`)}>
+            Nueva consulta
+          </Btn>
+        )}
       </Seccion>
 
       <Seccion titulo="Análisis micológicos">
