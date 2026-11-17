@@ -12,6 +12,7 @@ import { ProfilePage } from './features/profile/ProfilePage';
 import { PacienteDetallePage } from './features/recepcion/PacienteDetallePage';
 import { PacienteFormPage } from './features/recepcion/PacienteFormPage';
 import { PacientesListPage } from './features/recepcion/PacientesListPage';
+import { ListaEsperaPage } from './features/recepcion/ListaEsperaPage';
 import { AuditoriaPage } from './features/seguridad/AuditoriaPage';
 import { UsuariosPage } from './features/seguridad/UsuariosPage';
 import { homePath } from './features/navigation/navigation';
@@ -85,11 +86,12 @@ export function App() {
             <Route path="/residuos" element={<PlaceholderPage title="Control de Residuos" />} />
             <Route path="/reportes" element={<PlaceholderPage title="Reportes y Estadísticas" />} />
 
-            {/* REC-U06, REC-U05, REC-U07 */}
+            {/* REC-U06, REC-U05, REC-U07, REC-U11 */}
             <Route path="/pacientes" element={<PacientesListPage />} />
             <Route path="/pacientes/nuevo" element={<PacienteFormPage />} />
             <Route path="/pacientes/:pacienteId" element={<PacienteDetallePage />} />
             <Route path="/pacientes/:pacienteId/editar" element={<PacienteFormPage />} />
+            <Route path="/lista-espera" element={<ListaEsperaPage />} />
 
             {/* SEG-U02..U05 */}
             <Route path="/usuarios" element={<UsuariosRoute />} />

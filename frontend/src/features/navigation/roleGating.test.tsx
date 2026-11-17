@@ -12,6 +12,7 @@ const ALL_PAGES = [
   'Panel de Control',
   'Agenda y Turnos',
   'Pacientes',
+  'Lista de Espera',
   'Análisis',
   'Resultados',
   'Insumos y Stock',
@@ -21,8 +22,11 @@ const ALL_PAGES = [
   'Auditoría',
 ];
 
+// `Lista de Espera` is administrator-only (UCE-REC-29 precondition), like the
+// two administration pages.
 const BIOQUIMICO_PAGES = ALL_PAGES.filter(
-  (label) => label !== 'Usuarios y Roles' && label !== 'Auditoría',
+  (label) =>
+    label !== 'Usuarios y Roles' && label !== 'Auditoría' && label !== 'Lista de Espera',
 );
 
 function userWithRoles(roles: string[]): User {

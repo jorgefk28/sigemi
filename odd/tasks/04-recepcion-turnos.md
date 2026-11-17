@@ -323,6 +323,77 @@ persiste en `cambio_auditoria` con `campo = "motivo_baja"` (nivel 2 decisión 9)
 **Fuera de alcance**: iniciar la consulta (`UC–DIAG-01`, dependencia D4); listar los turnos
 vigentes del paciente en la excepción del paso 8 — requiere el endpoint de turnos (T4b).
 
+#### REC-U11 · Lista de espera
+
+- **Patrón**: P1
+- **Respaldo**: UCE-REC-29 pasos 1-4 («El Administrador ingresa a la lista de espera», «lo
+  ordena por prioridad», «aplica filtros opcionales (tipo de análisis, fecha de solicitud)»);
+  UCE-REC-28 pasos 1-7 («selecciona el paciente y presiona Quitar», «el sistema solicita
+  confirmación», «registra el evento en auditoría»); RF-03
+- **Actor y permiso**: `administrador` (precondición de REC-29: «sesión activa con rol de
+  Administrador»). Backend: `require_roles("administrador")`
+- **Ruta y entrada**: Sidebar → Principal → Lista de Espera (`/lista-espera`). La página no
+  estaba en el inventario del prototipo: la exige el nivel 1 y su permiso es exclusivo del
+  administrador, que ve todas las páginas; la divergencia se registra en el Log (L6).
+- **Zonas**: header con breadcrumb; barra de filtros; tabla; paginación
+
+**Datos** (nombre exacto del nivel 3)
+
+| Columna | Campo | Origen |
+|---|---|---|
+| Paciente | `paciente_apellido` + `paciente_nombre` (resueltos) | `lista_espera`, `paciente` |
+| DNI | `paciente_dni` (resuelto) | `paciente` |
+| Fecha de solicitud | `fecha_solicitud` (`dd/MM/yyyy HH:mm`) | `lista_espera` |
+| Estado | `estado` (`pendiente` \| `asignado` \| `retirado`) | `lista_espera` |
+| Observaciones | `observaciones` (nullable, se muestra «—») | `lista_espera` |
+
+**Filtros**
+
+| Filtro | Parámetro | Origen |
+|---|---|---|
+| Estado | `estado` = `pendiente` \| `asignado` \| `retirado`; por defecto `pendiente` | REC-29 paso 3 |
+| Fecha desde / hasta | `fecha_desde`, `fecha_hasta` sobre `fecha_solicitud` | REC-29 paso 3 |
+| Paginación | `limit` 20 por defecto, tope 100; `offset` | convención del repositorio |
+
+**Acciones**
+
+| Acción | Endpoint | Habilitada cuando | Efecto |
+|---|---|---|---|
+| Quitar | `POST /api/v1/lista-espera/{id}/quitar` | `estado != retirado` | pide confirmación (REC-28 paso 4) y, al confirmar, deja `estado = retirado` y audita el cambio |
+
+El orden de la lista lo fija el backend (prioridad derivada: `fecha_solicitud` y
+`tipo_analisis_id` ascendentes, decisión A9). La UI no reordena.
+
+**Estados**
+
+| Estado | Qué se muestra |
+|---|---|
+| Vacío | «No hay pacientes en lista de espera» (excepción del paso 2, textual) |
+| Sin coincidencias | «No se encontraron entradas con esos filtros» + Limpiar filtros |
+| Cargando | esqueleto de tabla, nunca números |
+| Error | «No se pudo cargar la lista de espera» + Reintentar |
+| Confirmación cancelada | no se modifica nada (excepción del paso 4) |
+| Sin permiso | redirección al inicio, no un 403 crudo (R2) |
+
+**Reglas y excepciones**
+
+| Regla | Clase | Origen | Dónde se aplica |
+|---|---|---|---|
+| Sólo `administrador` consulta y quita | R2 | precondición REC-29 | `require_roles("administrador")` |
+| Quitar exige confirmación explícita | R1 | REC-28 paso 4 y exc. | diálogo; sin confirmación no hay request |
+| Quitar es lógico y audita `modificar` | R1 | REC-28 pasos 6-7 + decisión A8 | backend |
+| Quitar dos veces no duplica la auditoría | R1 | idempotencia del endpoint | backend |
+| El orden de prioridad es del backend | R4 | REC-29 paso 2 + A9 | UI no reordena |
+
+**Pantalla sin la mitad de su alcance, declarada**: el filtro «tipo de análisis» de REC-29
+paso 3 no se implementa todavía porque `lista_espera` expone `tipo_analisis_id` sin nombre y
+**no hay endpoint de catálogo de tipos de análisis** (`UC-DIAG-10`, subsistema DIAG sin
+especificar). Mostrar un UUID crudo o inventar un nombre sería peor que la ausencia del
+filtro: se registra como dependencia, no se simula.
+
+**Fuera de alcance**: la vía manual de alta en la lista (REC-23, hueco G8); la asignación
+automática de turno liberado (REC-27, proceso del sistema, sin pantalla).
+
 ---
 
 ## Tasks
@@ -602,7 +673,15 @@ exit 0; `npm test` → **103 passed** (13 archivos); `npm run build` → `✓ bu
 placeholder de las páginas sin pantalla— sigue verde: el caso que usaba «Pacientes» como
 ejemplo de placeholder se movió a «Análisis», que es el que sigue sin especificación.
 
-**Pendiente de decisión del dueño**: REC-U11 (lista de espera) tiene backend (L5) pero **no
-tiene especificación** en `## Screens`: el §Screens sólo la clasifica (P1) y limita el alcance
-a consultar y quitar, porque la vía manual de REC-23 es el hueco G8. Sin el paso 3 escrito no
-se implementa, por la regla de `AGENTS.md` §Screen and design authority.
+**REC-U11 quedó especificada e implementada** (misma sesión, después de las tres anteriores): su
+`## Screens` se escribió desde UCE-REC-29 pasos 1-4 y UCE-REC-28 pasos 1-7, que no estaban
+especificadas —el §Screens sólo la clasificaba como P1 y limitaba el alcance a consultar y
+quitar por el hueco G8—. Dos límites quedan declarados en la especificación, no simulados: el
+filtro «tipo de análisis» no se ofrece porque `lista_espera` expone `tipo_analisis_id` sin
+nombre y no hay endpoint de catálogo (`UC-DIAG-10`), y el orden es el del backend.
+
+**Divergencia de navegación registrada**: `Lista de Espera` se agregó al sidebar, en el grupo
+`Principal`, con `roles: []` (sólo administrador). No estaba en el inventario del prototipo que
+fija S5 de `03-shell-frontend.md`; la exige el nivel 1 (UCE-REC-29, precondición de rol
+administrador) y se implementa el flujo del requisito, reportando la divergencia contra la
+autoridad de presentación, como manda `AGENTS.md` §Screen and design authority.

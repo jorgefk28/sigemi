@@ -50,6 +50,7 @@ export const PAGES: NavPage[] = [
   { id: 'dashboard', label: 'Panel de Control', title: 'Estado operativo del laboratorio', path: '/panel-control', roles: ['bioquimico'] },
   { id: 'agenda', label: 'Agenda y Turnos', title: 'Agenda y Turnos', path: '/agenda', roles: ['bioquimico'] },
   { id: 'pacientes', label: 'Pacientes', title: 'Pacientes', path: '/pacientes', roles: ['bioquimico'] },
+  { id: 'lista-espera', label: 'Lista de Espera', title: 'Lista de Espera', path: '/lista-espera', roles: [] },
   { id: 'analisis', label: 'Análisis', title: 'Análisis', path: '/analisis', roles: ['bioquimico'] },
   { id: 'resultados', label: 'Resultados', title: 'Resultados', path: '/resultados', roles: ['bioquimico'] },
   { id: 'insumos', label: 'Insumos y Stock', title: 'Insumos y Stock', path: '/insumos', roles: ['bioquimico', 'profesor'] },
@@ -61,11 +62,11 @@ export const PAGES: NavPage[] = [
 
 /** Groups in sidebar order. */
 export const NAV_GROUPS: NavGroup[] = [
-  { id: 'principal', label: 'Principal', pages: [PAGES[0], PAGES[1], PAGES[2]] },
-  { id: 'laboratorio', label: 'Laboratorio', pages: [PAGES[3], PAGES[4]] },
-  { id: 'insumos', label: 'Insumos', pages: [PAGES[5], PAGES[6]] },
-  { id: 'reportes', label: 'Reportes', pages: [PAGES[7]] },
-  { id: 'administracion', label: 'Administración', pages: [PAGES[8], PAGES[9]] },
+  { id: 'principal', label: 'Principal', pages: [PAGES[0], PAGES[1], PAGES[2], PAGES[3]] },
+  { id: 'laboratorio', label: 'Laboratorio', pages: [PAGES[4], PAGES[5]] },
+  { id: 'insumos', label: 'Insumos', pages: [PAGES[6], PAGES[7]] },
+  { id: 'reportes', label: 'Reportes', pages: [PAGES[8]] },
+  { id: 'administracion', label: 'Administración', pages: [PAGES[9], PAGES[10]] },
 ];
 
 export const DEFAULT_PAGE_ID = 'dashboard';
