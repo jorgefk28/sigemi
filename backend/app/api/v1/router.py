@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    analisis,
     auditoria,
     auth,
     catalogos,
@@ -26,3 +27,4 @@ api_router.include_router(lista_espera.router)
 api_router.include_router(catalogos.router)
 api_router.include_router(indicaciones.router)
 api_router.include_router(fichas.router)
+api_router.include_router(analisis.router)
