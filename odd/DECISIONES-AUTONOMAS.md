@@ -256,3 +256,104 @@ valida ni agrega addendum: esas cinco son exclusivas del bioquímico.
 **Por qué.** UCE-DIAG-04 comentarios: «Solo el rol Bioquímico/Doctor puede validar». UCE-DIAG-08
 lista al administrador explícitamente; las otras no. La UI oculta lo que el backend rechaza, y
 el backend rechaza con `require_roles`.
+
+---
+
+# Integración del frontend back-office — 2026-11-17
+
+El dueño entregó un repositorio con un frontend casi completo y pidió que **ese** sea el frontend
+del sistema, integrado con el backend, y que los datos sigan viéndose aunque sean mockeados, con
+autoridad para conciliar las inconsistencias contra las fuentes de verdad. Detalle completo en
+`odd/tasks/07-frontend-backoffice.md`.
+
+## A-13 — El frontend de la entrega reemplaza a la interfaz anterior
+
+**Decisión.** Las pantallas, el shell y los tokens visuales del repositorio entregado pasan a ser
+la interfaz del proyecto (`frontend/src/screens/`). Se retiran las páginas, el shell y las pruebas
+de la interfaz anterior; se conservan la sesión, la capa HTTP y sus pruebas.
+
+**Por qué.** Es una instrucción explícita del dueño y no una decisión técnica.
+
+**Fuente.** Pedido del 2026-11-17 (L1 de `07-frontend-backoffice.md`).
+
+**Impacto.** El sistema de diseño anterior (`components/`, `features/`) deja de existir. La prueba
+de sesión sigue cubriendo login, restauración y logout porque `App` sigue siendo su raíz.
+
+**Confirmación del dueño.** Ya dada.
+
+## A-14 — `paciente.sexo` se expone en la API
+
+**Decisión.** `sexo` se agrega a `PacienteRead`, `PacienteCreate` y `PacienteUpdate`. No hay
+migración: la columna ya existe en el modelo y en el nivel 3.
+
+**Por qué.** El esquema (nivel 3, tabla `paciente`) **sí** tiene `sexo varchar`, el ORM también, y
+la API lo ocultaba citando el hueco G13. El nivel 3 gana: la pantalla de pacientes lo pide como
+campo obligatorio y sin exponerlo el formulario guardaría un paciente sin el dato que el operador
+cargó. Se mantiene nullable, como el nivel 3 y como UC-REC-15 paso 6.
+
+**Fuente.** Nivel 3 §`paciente` (columna `sexo`, nullable); `app/models/clinical.py` (ya lo tenía);
+pruebas `test_create_and_update_round_trip_sexo`.
+
+**Impacto.** `test_rec_pacientes.py` cambia dos aserciones que fijaban la ausencia de `sexo`.
+
+**Confirmación del dueño.** No: la fuente de verdad es explícita.
+
+## A-15 — `paciente.ocupacion` se retira del formulario
+
+**Decisión.** El campo «Ocupación» de la pantalla de pacientes se elimina.
+
+**Por qué.** No existe columna `ocupacion` en el nivel 3 ni en el modelo; el prototipo la ofrecía
+como texto libre que ninguna tabla podía guardar. Dejar el campo visible sería pedirle un dato al
+operador y descartarlo en silencio.
+
+**Fuente.** Nivel 3 §`paciente` (no hay columna).
+
+**Confirmación del dueño.** No. Si la ocupación se considera un dato clínico necesario, se agrega
+primero al nivel 3 y después al modelo.
+
+## A-16 — Los datos de la entrega se muestran aunque la base esté vacía
+
+**Decisión.** Cada pantalla que lee del backend **antepone las filas reales y conserva detrás el
+dataset de la entrega** (`seed`), deduplicado por la clave natural de la pantalla (DNI en
+pacientes). Una fila que todavía no tiene identidad en el backend se persiste en su primera
+edición (`POST` antes de `PATCH`).
+
+**Por qué.** Es literalmente lo pedido: «los datos que se muestran en el nuevo repositorio
+necesito que se muestren, no importa que sean datos hardcodeados o mockeados». Además evita el
+peor resultado de una integración: una demo con la base vacía que se ve vacía.
+
+**Fuente.** Pedido del 2026-11-17; `AGENTS.md` §Scope guard (no se inventan endpoints).
+
+**Riesgo.** Un demo que parece completo con datos de ejemplo mezclados con reales. Se acota
+porque las filas reales van primero y navegan su propio ciclo; sólo los módulos sin endpoint del
+nivel 1 (agenda, stock, residuos, reportes y KPIs) son 100 % seed.
+
+**Confirmación del dueño.** Es su pedido; conviene que sepa que la mezcla existe.
+
+## A-17 — Qué se integra y qué queda mockeado (estado real de la entrega)
+
+**Integrado contra `/api/v1`:** sesión (`/auth/login`, `/auth/me`), pacientes (listado, alta,
+edición, baja), auditoría (listado + detalle con cambios) y catálogos de roles.
+
+**Mockeado, con la pantalla intacta:** Panel de Control, Agenda y Turnos, Panel de Análisis,
+Ficha Clínica, Detalle de Análisis, Carga de Resultados, Resultados, Insumos y Stock, Control de
+Residuos, Reportes y Estadísticas, Usuarios y Roles.
+
+**Por qué, caso por caso.**
+
+- *Agenda, Insumos, Residuos, Reportes y Estadísticas* no tienen router v1 (A-09 y sus
+  consecuencias): son los mismos huecos ya registrados, no una regresión de esta entrega.
+- *Ficha Clínica y el ciclo del análisis* no se pueden mapear sin pérdida: la entrega modela la
+  ficha como formulario clínico rico (naturaleza, sitio, lesión, factores, material) y el backend
+  la materializa como clave-valor con seis claves (A-04). Conectar la pantalla exigiría extender
+  el catálogo clínico y las reglas de la UCE-DIAG-01, que es una decisión de contenido clínico
+  reservada al dueño.
+- *Usuarios y Roles* quedó mockeado a propósito: la API expone nombre, correo, estado y roles,
+  pero no último acceso, intentos fallidos, fecha de registro ni el perfil profesional
+  (matrícula, especialidad) que la pantalla muestra. Conectarla dejaría cuatro de las seis
+  columnas y todo el bloque profesional en «—», que es peor que el demo para una defensa.
+
+**Fuente.** `app/api/v1/`, A-04, A-09.
+
+**Confirmación del dueño.** Sí, para priorizar las dos extensiones que cierran el mockeo:
+catálogo clínico (A-04) y perfil profesional en `UsuarioRead`.
