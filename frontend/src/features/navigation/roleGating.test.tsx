@@ -13,6 +13,7 @@ const ALL_PAGES = [
   'Agenda y Turnos',
   'Pacientes',
   'Lista de Espera',
+  'Indicaciones Médicas',
   'Análisis',
   'Resultados',
   'Insumos y Stock',
@@ -20,14 +21,14 @@ const ALL_PAGES = [
   'Reportes y Estadísticas',
   'Usuarios y Roles',
   'Auditoría',
+  'Catálogos Clínicos',
 ];
 
-// `Lista de Espera` is administrator-only (UCE-REC-29 precondition), like the
-// two administration pages.
-const BIOQUIMICO_PAGES = ALL_PAGES.filter(
-  (label) =>
-    label !== 'Usuarios y Roles' && label !== 'Auditoría' && label !== 'Lista de Espera',
-);
+// Administrator-only pages: `Lista de Espera` (UCE-REC-29 precondition), the two
+// administration pages and `Catálogos Clínicos` (UCE-DIAG-10 precondition).
+const ADMIN_ONLY = new Set(['Usuarios y Roles', 'Auditoría', 'Lista de Espera', 'Catálogos Clínicos']);
+
+const BIOQUIMICO_PAGES = ALL_PAGES.filter((label) => !ADMIN_ONLY.has(label));
 
 function userWithRoles(roles: string[]): User {
   return { ...userFixture, roles };

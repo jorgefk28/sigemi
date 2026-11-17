@@ -14,7 +14,10 @@ import { ProfilePage } from './features/profile/ProfilePage';
 import { PacienteDetallePage } from './features/recepcion/PacienteDetallePage';
 import { PacienteFormPage } from './features/recepcion/PacienteFormPage';
 import { PacientesListPage } from './features/recepcion/PacientesListPage';
+import { CatalogosPage } from './features/catalogos/CatalogosPage';
 import { ListaEsperaPage } from './features/recepcion/ListaEsperaPage';
+import { IndicacionesListPage } from './features/recepcion/IndicacionesListPage';
+import { IndicacionFormPage } from './features/recepcion/IndicacionFormPage';
 import { AuditoriaPage } from './features/seguridad/AuditoriaPage';
 import { UsuariosPage } from './features/seguridad/UsuariosPage';
 import { homePath } from './features/navigation/navigation';
@@ -102,9 +105,17 @@ export function App() {
             <Route path="/pacientes/:pacienteId/editar" element={<PacienteFormPage />} />
             <Route path="/lista-espera" element={<ListaEsperaPage />} />
 
+            {/* REC-U08, REC-U09 */}
+            <Route path="/indicaciones" element={<IndicacionesListPage />} />
+            <Route path="/indicaciones/nueva" element={<IndicacionFormPage />} />
+            <Route path="/indicaciones/:indicacionId/editar" element={<IndicacionFormPage />} />
+
             {/* SEG-U02..U05 */}
             <Route path="/usuarios" element={<UsuariosRoute />} />
             <Route path="/auditoria" element={<AuditoriaRoute />} />
+
+            {/* DIAG-U06 */}
+            <Route path="/catalogos" element={<CatalogosPage />} />
 
             {/* SEG-U08, SEG-U09 */}
             <Route path="/perfil" element={<ProfilePage />} />

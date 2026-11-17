@@ -51,6 +51,7 @@ export const PAGES: NavPage[] = [
   { id: 'agenda', label: 'Agenda y Turnos', title: 'Agenda y Turnos', path: '/agenda', roles: ['bioquimico'] },
   { id: 'pacientes', label: 'Pacientes', title: 'Pacientes', path: '/pacientes', roles: ['bioquimico'] },
   { id: 'lista-espera', label: 'Lista de Espera', title: 'Lista de Espera', path: '/lista-espera', roles: [] },
+  { id: 'indicaciones', label: 'Indicaciones Médicas', title: 'Indicaciones Médicas', path: '/indicaciones', roles: ['bioquimico'] },
   { id: 'analisis', label: 'Análisis', title: 'Análisis', path: '/analisis', roles: ['bioquimico'] },
   { id: 'resultados', label: 'Resultados', title: 'Resultados', path: '/resultados', roles: ['bioquimico'] },
   { id: 'insumos', label: 'Insumos y Stock', title: 'Insumos y Stock', path: '/insumos', roles: ['bioquimico', 'profesor'] },
@@ -58,15 +59,16 @@ export const PAGES: NavPage[] = [
   { id: 'reportes', label: 'Reportes y Estadísticas', title: 'Reportes y Estadísticas', path: '/reportes', roles: ['bioquimico'] },
   { id: 'usuarios', label: 'Usuarios y Roles', title: 'Usuarios y Roles', path: '/usuarios', roles: [] },
   { id: 'auditoria', label: 'Auditoría', title: 'Auditoría', path: '/auditoria', roles: [] },
+  { id: 'catalogos', label: 'Catálogos Clínicos', title: 'Catálogos Clínicos', path: '/catalogos', roles: [] },
 ];
 
 /** Groups in sidebar order. */
 export const NAV_GROUPS: NavGroup[] = [
-  { id: 'principal', label: 'Principal', pages: [PAGES[0], PAGES[1], PAGES[2], PAGES[3]] },
-  { id: 'laboratorio', label: 'Laboratorio', pages: [PAGES[4], PAGES[5]] },
-  { id: 'insumos', label: 'Insumos', pages: [PAGES[6], PAGES[7]] },
-  { id: 'reportes', label: 'Reportes', pages: [PAGES[8]] },
-  { id: 'administracion', label: 'Administración', pages: [PAGES[9], PAGES[10]] },
+  { id: 'principal', label: 'Principal', pages: [PAGES[0], PAGES[1], PAGES[2], PAGES[3], PAGES[4]] },
+  { id: 'laboratorio', label: 'Laboratorio', pages: [PAGES[5], PAGES[6]] },
+  { id: 'insumos', label: 'Insumos', pages: [PAGES[7], PAGES[8]] },
+  { id: 'reportes', label: 'Reportes', pages: [PAGES[9]] },
+  { id: 'administracion', label: 'Administración', pages: [PAGES[10], PAGES[11], PAGES[12]] },
 ];
 
 export const DEFAULT_PAGE_ID = 'dashboard';

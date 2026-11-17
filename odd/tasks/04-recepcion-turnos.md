@@ -394,6 +394,116 @@ filtro: se registra como dependencia, no se simula.
 **Fuera de alcance**: la vía manual de alta en la lista (REC-23, hueco G8); la asignación
 automática de turno liberado (REC-27, proceso del sistema, sin pantalla).
 
+#### REC-U08 · Formulario de indicación médica (alta y edición)
+
+- **Patrón**: P3
+- **Respaldo**: UCE-REC-10 pasos 1-7 (crear), UCE-REC-11 pasos 1-5 (modificar); RF-02
+- **Actor y permiso**: Bioquímico/Doctor o Administrador (precondición idéntica en las dos
+  UCE). Backend: `require_roles("bioquimico", "administrador")`
+- **Ruta y entrada**: REC-U09 → «Nueva Indicación» o «Editar»; `/indicaciones/nueva` y
+  `/indicaciones/:id/editar`
+- **Zonas**: header con título según modo; formulario de una columna; acciones Guardar /
+  Cancelar
+
+**Datos** (UCE-REC-10 paso 2 los nombra los tres)
+
+| Campo | Columna | Obligatorio | Origen |
+|---|---|---|---|
+| Título | `titulo` | sí | REC-10 paso 2 |
+| Contenido | `contenido` | sí | REC-10 paso 2 |
+| Tipo de análisis asociado | `tipo_analisis_id` | sí | REC-10 paso 2 + nivel 3 (NOT NULL) |
+
+El selector de tipo de análisis se llena con `GET /tipos-analisis` (T1 de
+`05-laboratorio-bioquimico.md`), no con una lista escrita en la pantalla.
+
+**Acciones**
+
+| Acción | Endpoint | Habilitada cuando | Efecto |
+|---|---|---|---|
+| Guardar (alta) | `POST /api/v1/indicaciones-medicas` | los tres campos con valor | crea y vuelve a REC-U09 (REC-10 paso 7) |
+| Guardar cambios (edición) | `PATCH /api/v1/indicaciones-medicas/{id}` | idem | actualiza y vuelve a REC-U09 (REC-11 paso 5) |
+| Cancelar | — | siempre | vuelve sin escribir |
+
+**Estados**
+
+| Estado | Qué se muestra |
+|---|---|
+| Error de campo | mensaje bajo el campo, del `400` con `campo` (R3) |
+| Catálogo vacío | «No hay tipos de análisis cargados» + acceso a Catálogos Clínicos si el rol lo permite |
+| Guardando | botón deshabilitado, sin doble submit |
+| Error de red | «No se pudo conectar con el servidor» + Reintentar, nunca un error de validación |
+
+**Reglas y excepciones**
+
+| Regla | Clase | Origen | Dónde se aplica |
+|---|---|---|---|
+| Los tres campos son obligatorios | R3 | REC-10 paso 4 y su excepción | backend `400` + `campo`; la UI avisa antes de enviar |
+| El tipo de análisis debe existir | R3 | derivado del paso 5 (vincular) | backend `400` + `campo="tipo_analisis_id"` |
+| Editar no cambia el estado | R4 | REC-11 no lo menciona; dar de baja es REC-12 | el formulario no ofrece estado |
+
+**Fuera de alcance**: el envío al paciente por WhatsApp (REC-09, Agente IA).
+
+#### REC-U09 · Listado de indicaciones médicas
+
+- **Patrón**: P1
+- **Respaldo**: UCE-REC-13 pasos 1-4 (consultar y filtrar), UCE-REC-12 pasos 1-6 (eliminar),
+  UCE-REC-11 paso 1 y UCE-REC-10 paso 1 (puntos de entrada); RF-02
+- **Actor y permiso**: Bioquímico/Doctor o Administrador. Backend:
+  `require_roles("bioquimico", "administrador")`
+- **Ruta y entrada**: Sidebar → Principal → Indicaciones Médicas (`/indicaciones`). Página
+  agregada por el nivel 1: dos UCE dicen «ingresa al módulo de Indicaciones Médicas» y el
+  prototipo no la tenía (divergencia registrada en el Log).
+- **Zonas**: header con breadcrumb y acción «Nueva Indicación»; barra de filtros; tabla;
+  paginación
+
+**Datos** (REC-13 paso 3 nombra las cuatro columnas)
+
+| Columna | Campo | Origen |
+|---|---|---|
+| Título | `titulo` | `indicacion_medica` |
+| Contenido | `contenido` (recortado con «Ver más» si es largo) | `indicacion_medica` |
+| Tipo de análisis | `tipo_analisis_nombre` (resuelto por el backend) | `tipo_analisis` vía FK |
+| Estado | `estado` (Activa / Inactiva) | `indicacion_medica` |
+
+**Filtros** (REC-13 paso 4)
+
+| Filtro | Parámetro | Origen |
+|---|---|---|
+| Texto libre sobre título y contenido | `q` | REC-13 paso 4 (lectura) + convención del repo |
+| Estado | `estado` = `activa` \| `inactiva` | REC-13 paso 4 (textual) |
+| Tipo de análisis | `tipo_analisis_id` | REC-13 paso 4 (textual) |
+| Paginación | `limit` 20, tope 100; `offset` | convención del repositorio |
+
+**Acciones**
+
+| Acción | Endpoint | Habilitada cuando | Efecto |
+|---|---|---|---|
+| Nueva Indicación | `POST` vía REC-U08 | siempre | abre REC-U08 en modo alta |
+| Editar | `PATCH` vía REC-U08 | siempre | abre REC-U08 en modo edición |
+| Eliminar | `POST /api/v1/indicaciones-medicas/{id}/baja` | `estado == activa` | pide confirmación (REC-12 paso 3) y deja `inactiva` |
+
+**Estados**
+
+| Estado | Qué se muestra |
+|---|---|
+| Vacío | «No hay indicaciones médicas registradas» (excepción del paso 2, textual) + Nueva Indicación |
+| Sin coincidencias | «No se encontraron indicaciones con esos filtros» + Limpiar filtros |
+| Confirmación cancelada | no se modifica nada (excepción del paso 4) |
+| Cargando | esqueleto de tabla |
+| Error | «No se pudieron cargar las indicaciones» + Reintentar |
+| Sin permiso | redirección al inicio, no un 403 crudo (R2) |
+
+**Reglas y excepciones**
+
+| Regla | Clase | Origen | Dónde se aplica |
+|---|---|---|---|
+| Sólo bioquímico o administrador | R2 | precondición de las cuatro UCE | `require_roles` |
+| Eliminar es baja lógica, no `DELETE` | R1 | REC-12 paso 5 y su comentario (turnos históricos) | backend `estado=inactiva` |
+| Eliminar exige confirmación | R1 | REC-12 paso 3 y su excepción | diálogo; sin confirmar no hay request |
+| Una indicación inactiva no ofrece Eliminar | R4 | REC-12 selecciona del listado y el paso 5 la deja inactiva | acción oculta |
+
+**Fuera de alcance**: asignar la indicación a un turno (REC-01 paso 7, Agente IA).
+
 ---
 
 ## Tasks
