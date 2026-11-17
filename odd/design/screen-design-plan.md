@@ -39,6 +39,7 @@ se reporta, no se diseña.
 | P5 | Panel de KPIs | "Resumen", "panel", "indicadores" |
 | P6 | Catálogo simple (tabla + alta/edición en línea) | Tablas de catálogo del nivel 3 |
 | P7 | Grilla temporal con vistas diaria, semanal y mensual | El UCE pide "la grilla de turnos" o "el calendario mensual" |
+| P8 | Generador con previsualización: parámetros, acción *Generar*, tabla de muestra, acción *Exportar* | El UCE pide configurar parámetros, **previsualizar** el conjunto y **exportarlo** |
 
 **P7 — por qué existe (decisión del 2026-11-16, al derivar REC).** La primera pantalla
 del sistema que no encajaba en ningún patrón fue `REC-U01 Gestión de Agenda`: siete UCE
@@ -50,6 +51,14 @@ acciones por bloque, y cambia el eje: el tiempo manda, la fila no.
 
 Se agrega en vez de partir la pantalla en dos porque las vistas diaria, semanal y mensual
 son la misma pantalla con distinto zoom: son un control de la pantalla, no dos pantallas.
+
+**P8 — por qué existe (decisión del 2026-11-16, al derivar REP).** `REP-U01 Generador de
+reportes` no encajaba en ningún patrón: no es P1 porque no hay filas accionables (las dos
+acciones son de conjunto), ni P3 porque no se crea ni se edita una entidad del dominio, ni P4
+porque no hay estados sucesivos de un registro. Partirla en «configurar» y «previsualizar»
+habría obligado a repetir o a persistir los parámetros en un lugar que ninguna UCE nombra, y
+los parámetros vigentes son justamente el estado que une previsualizar con exportar. Comparte
+la tabla con P1 y los controles de parámetros con P3: no necesita primitivas nuevas.
 
 
 Una pantalla que no encaja en ningún patrón es señal de alarma: o son dos pantallas,
