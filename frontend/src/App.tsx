@@ -20,6 +20,7 @@ import { FichaDetallePage } from './features/diagnostico/FichaDetallePage';
 import { PanelAnalisisPage } from './features/diagnostico/PanelAnalisisPage';
 import { AnalisisDetallePage } from './features/diagnostico/AnalisisDetallePage';
 import { MuestraFormPage } from './features/diagnostico/MuestraFormPage';
+import { ReportesPage } from './features/reportes/ReportesPage';
 import { ListaEsperaPage } from './features/recepcion/ListaEsperaPage';
 import { IndicacionesListPage } from './features/recepcion/IndicacionesListPage';
 import { IndicacionFormPage } from './features/recepcion/IndicacionFormPage';
@@ -102,7 +103,7 @@ export function App() {
             <Route path="/resultados" element={<PlaceholderPage title="Resultados" />} />
             <Route path="/insumos" element={<PlaceholderPage title="Insumos y Stock" />} />
             <Route path="/residuos" element={<PlaceholderPage title="Control de Residuos" />} />
-            <Route path="/reportes" element={<PlaceholderPage title="Reportes y Estadísticas" />} />
+            <Route path="/reportes" element={<ReportesPage />} />
 
             {/* REC-U06, REC-U05, REC-U07, REC-U11 */}
             <Route path="/pacientes" element={<PacientesListPage />} />

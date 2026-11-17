@@ -1,8 +1,18 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Btn } from '../../components/Btn';
 import { EmptyState } from '../../components/EmptyState';
 import { Kpi } from '../../components/Kpi';
 import { Panel } from '../../components/Panel';
+
+/** Link from an indicator to the module that governs it (REP-02 pasos 4-5). */
+function VerModulo({ to, label }: { to: string; label: string }) {
+  return (
+    <Link to={to} className="text-[11px] font-medium text-brand hover:underline">
+      {label}
+    </Link>
+  );
+}
 
 /** Format a Date as `dd.MM.yyyy` (es-AR, dot separators). */
 function formatDateAR(date: Date): string {
@@ -58,9 +68,14 @@ export function DashboardPage() {
         <h2 className="text-sm font-semibold text-gray-900">Resumen</h2>
       </div>
 
-      {/* Cards */}
+      {/* Cards. REP-02 pasos 4-5: each indicator leads to the module that owns
+          it (A-10); the values stay empty until those modules have endpoints. */}
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Panel title="Turnos de hoy" meta="Hoy">
+        <Panel
+          title="Turnos de hoy"
+          meta="Hoy"
+          action={<VerModulo to="/agenda" label="Ver agenda" />}
+        >
           <div className="grid grid-cols-3 gap-4">
             <Kpi label="Confirmados" />
             <Kpi label="Atendidos" />
@@ -68,7 +83,11 @@ export function DashboardPage() {
           </div>
         </Panel>
 
-        <Panel title="Carga de trabajo" meta="Hoy">
+        <Panel
+          title="Carga de trabajo"
+          meta="Hoy"
+          action={<VerModulo to="/analisis" label="Ver análisis" />}
+        >
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Kpi label="Pendiente" />
             <Kpi label="En Proceso" />
@@ -77,11 +96,17 @@ export function DashboardPage() {
           </div>
         </Panel>
 
-        <Panel title="Próximos turnos">
+        <Panel
+          title="Próximos turnos"
+          action={<VerModulo to="/agenda" label="Ver agenda" />}
+        >
           <EmptyState />
         </Panel>
 
-        <Panel title="Alertas de stock">
+        <Panel
+          title="Alertas de stock"
+          action={<VerModulo to="/insumos" label="Ver insumos" />}
+        >
           <EmptyState />
         </Panel>
       </div>

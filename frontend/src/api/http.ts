@@ -38,6 +38,11 @@ export function buildQuery(
   return search.toString();
 }
 
+/** Append a query string only when there is one: no trailing `?` on a bare path. */
+export function withQuery(path: string, query: string): string {
+  return query ? `${path}?${query}` : path;
+}
+
 /** A failed request: HTTP status plus, when present, the offending field. */
 export class ApiError extends Error {
   readonly status?: number;
