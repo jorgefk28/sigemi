@@ -55,6 +55,12 @@ Roles cerrados del backend: `bioquimico`, `profesor`, `administrador`. El protot
 
 Verificado contra nivel 1: el Profesor solo participa en casos de uso de insumos y residuos (ACT‑02 y UC de retiro/devolución/disposición); no aparece en agenda, pacientes ni análisis. El gating es de presentación: la autorización real es del backend.
 
+**Página agregada por el nivel 1 (2026-11-16)**: `Lista de Espera` (`/lista-espera`, grupo
+`Principal`, `roles: []` → sólo administrador). No está en el prototipo porque el prototipo no
+tiene esa pantalla, pero UCE-REC-29 la exige y su precondición es el rol administrador, que ya
+ve todas las páginas: la tabla de arriba sigue siendo correcta y ningún otro rol cambia. La
+derivación está en `04-recepcion-turnos.md` §`Screens` (REC-U11) y L6 de su Log.
+
 ### S6 — Armazón visual (autoridad de presentación: Figma `X7mBlw5ZzuvAIyZXb1UVdG`, nodo `1:3`)
 
 Del code layer del prototipo, tal cual:
