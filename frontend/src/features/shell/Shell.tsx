@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { PageShell } from '../../components/PageShell';
+import { MAIN_CONTENT_ID, PageShell } from '../../components/PageShell';
 import { Sidebar } from '../../components/Sidebar';
 import { UserMenu } from '../../components/UserMenu';
 import { useAuth } from '../../session/auth';
@@ -26,14 +27,25 @@ export function Shell() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const page = user ? pageByPath(location.pathname) : undefined;
+  const account = user ? accountRouteByPath(location.pathname) : undefined;
+
+  // SPA hygiene: the document title follows the screen, and focus moves to the
+  // body so the next Tab starts inside the new content instead of the chrome.
+  useEffect(() => {
+    const title = account?.title ?? page?.title;
+    if (title) {
+      document.title = `${title} · SIGEMI`;
+    }
+    document.getElementById(MAIN_CONTENT_ID)?.focus();
+  }, [location.pathname, page?.title, account?.title]);
+
   if (!user) {
     // Unreachable under RequireAuth; defensive.
     return null;
   }
 
   const home = homePath(user.roles);
-  const page = pageByPath(location.pathname);
-  const account = accountRouteByPath(location.pathname);
 
   // `page` is matched by prefix, so every sub-route of a module (a form, a
   // detail screen) inherits its permission without declaring it again.

@@ -5,6 +5,7 @@ import { useGoHome } from './routes/useGoHome';
 import { Shell } from './features/shell/Shell';
 import { LoginPage } from './features/auth/LoginPage';
 import { LoadingScreen } from './components/LoadingScreen';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { PlaceholderPage } from './features/placeholder/PlaceholderPage';
 import { ChangePasswordPage } from './features/profile/ChangePasswordPage';
@@ -66,8 +67,9 @@ function AuditoriaRoute() {
  */
 export function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <ErrorBoundary>
+      <AuthProvider>
+        <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginRoute />} />
 
@@ -104,7 +106,8 @@ export function App() {
             <Route path="*" element={<HomeRedirect />} />
           </Route>
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
