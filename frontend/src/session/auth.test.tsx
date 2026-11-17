@@ -112,6 +112,8 @@ describe('session lifecycle', () => {
 
     expect(await screen.findByText('Panel de Control')).toBeInTheDocument();
 
+    // The delivered shell keeps the session menu collapsed; logout lives there.
+    await user.click(screen.getByRole('button', { name: 'Abrir menú de sesión' }));
     await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
 
     expect(await screen.findByLabelText('Correo electrónico')).toBeInTheDocument();

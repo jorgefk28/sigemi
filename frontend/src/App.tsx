@@ -1,154 +1,77 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './session/auth';
-import { RequireAuth } from './routes/RequireAuth';
-import { useGoHome } from './routes/useGoHome';
-import { Shell } from './features/shell/Shell';
-import { LoginPage } from './features/auth/LoginPage';
-import { LoadingScreen } from './components/LoadingScreen';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { SessionUnavailable } from './components/SessionUnavailable';
-import { DashboardPage } from './features/dashboard/DashboardPage';
-import { PlaceholderPage } from './features/placeholder/PlaceholderPage';
-import { ChangePasswordPage } from './features/profile/ChangePasswordPage';
-import { ProfilePage } from './features/profile/ProfilePage';
-import { PacienteDetallePage } from './features/recepcion/PacienteDetallePage';
-import { PacienteFormPage } from './features/recepcion/PacienteFormPage';
-import { PacientesListPage } from './features/recepcion/PacientesListPage';
-import { CatalogosPage } from './features/catalogos/CatalogosPage';
-import { FichaFormPage } from './features/diagnostico/FichaFormPage';
-import { FichaDetallePage } from './features/diagnostico/FichaDetallePage';
-import { PanelAnalisisPage } from './features/diagnostico/PanelAnalisisPage';
-import { AnalisisDetallePage } from './features/diagnostico/AnalisisDetallePage';
-import { MuestraFormPage } from './features/diagnostico/MuestraFormPage';
-import { ReportesPage } from './features/reportes/ReportesPage';
-import { ListaEsperaPage } from './features/recepcion/ListaEsperaPage';
-import { IndicacionesListPage } from './features/recepcion/IndicacionesListPage';
-import { IndicacionFormPage } from './features/recepcion/IndicacionFormPage';
-import { AuditoriaPage } from './features/seguridad/AuditoriaPage';
-import { UsuariosPage } from './features/seguridad/UsuariosPage';
-import { homePath } from './features/navigation/navigation';
+import { setSesion, ToastHost } from './screens/sigemi/core';
+import { LoginPage } from './screens/LoginPage';
+import { Workspace } from './screens/Workspace';
+import { Btn } from './screens/components/ui';
 
 /**
- * `/login` (SEG-U01) is the only anonymous entry point. A signed-in user that
- * reaches it is sent to its landing page instead of seeing the form again, and a
- * stored token the server could not verify shows the retry panel rather than
- * credentials the user does not need.
- */
-function LoginRoute() {
-  const { status, user, reload } = useAuth();
-
-  if (status === 'loading') {
-    return <LoadingScreen />;
-  }
-
-  if (status === 'unavailable') {
-    return <SessionUnavailable onRetry={reload} />;
-  }
-
-  if (status === 'authenticated' && user) {
-    return <Navigate to={homePath(user.roles)} replace />;
-  }
-
-  return <LoginPage />;
-}
-
-/** Landing of the authenticated area for the current roles. */
-function HomeRedirect() {
-  const { user } = useAuth();
-  return <Navigate to={user ? homePath(user.roles) : '/login'} replace />;
-}
-
-/** SEG-U02 + SEG-U03: no permission is a redirect, never a raw 403 (R2). */
-function UsuariosRoute() {
-  const goHome = useGoHome();
-  return <UsuariosPage onForbidden={goHome} />;
-}
-
-/** SEG-U04 + SEG-U05: same rule as the user listing. */
-function AuditoriaRoute() {
-  const goHome = useGoHome();
-  return <AuditoriaPage onForbidden={goHome} />;
-}
-
-/**
- * Router tree.
+ * Application root.
  *
- * Every screen owns its URL: a reload, a deep link and the browser back button
- * land on the same place. `Shell` is the layout route; it resolves the active
- * page from the URL and redirects a path the roles cannot see. A path that
- * matches no screen falls to the splat route and goes home.
- *
- * The screens of subsystems without a specification are not implemented: their
- * route renders the explicit placeholder, never invented content.
+ * The screen tree belongs to the delivered back-office repository
+ * (`odd/tasks/07-frontend-backoffice.md`); this file only decides *who* may see
+ * it. Spec S3: nothing renders before the backend confirms the session.
  */
 export function App() {
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginRoute />} />
+    <AuthProvider>
+      <SessionGate />
+    </AuthProvider>
+  );
+}
 
-          <Route
-            element={
-              <RequireAuth>
-                <Shell />
-              </RequireAuth>
-            }
-          >
-            <Route path="/panel-control" element={<DashboardPage />} />
-            <Route path="/agenda" element={<PlaceholderPage title="Agenda y Turnos" />} />
-            <Route path="/analisis" element={<PanelAnalisisPage />} />
-            <Route path="/analisis/:analisisId" element={<AnalisisDetallePage />} />
-            <Route path="/resultados" element={<PlaceholderPage title="Resultados" />} />
-            <Route path="/insumos" element={<PlaceholderPage title="Insumos y Stock" />} />
-            <Route path="/residuos" element={<PlaceholderPage title="Control de Residuos" />} />
-            <Route path="/reportes" element={<ReportesPage />} />
+function SessionGate() {
+  const { status, user, logout, reload } = useAuth();
 
-            {/* REC-U06, REC-U05, REC-U07, REC-U11 */}
-            <Route path="/pacientes" element={<PacientesListPage />} />
-            <Route path="/pacientes/nuevo" element={<PacienteFormPage />} />
-            <Route path="/pacientes/:pacienteId" element={<PacienteDetallePage />} />
-            <Route path="/pacientes/:pacienteId/editar" element={<PacienteFormPage />} />
-            <Route path="/lista-espera" element={<ListaEsperaPage />} />
+  // The prototype reads the signed-in operator from a global store; feeding it
+  // from `GET /auth/me` keeps every audit entry and role gate on the real user.
+  useEffect(() => {
+    if (user) {
+      setSesion(user);
+    }
+  }, [user]);
 
-            {/* REC-U08, REC-U09 */}
-            <Route path="/indicaciones" element={<IndicacionesListPage />} />
-            <Route path="/indicaciones/nueva" element={<IndicacionFormPage />} />
-            <Route path="/indicaciones/:indicacionId/editar" element={<IndicacionFormPage />} />
+  if (status === 'loading') {
+    return <BootScreen text="Restaurando la sesión…" />;
+  }
 
-            {/* DIAG-U03, DIAG-U04: the record lives under the patient, so the
-                module permission is inherited without a new nav page. */}
-            <Route
-              path="/pacientes/:pacienteId/fichas/nueva"
-              element={<FichaFormPage />}
-            />
-            <Route
-              path="/pacientes/:pacienteId/fichas/:fichaId"
-              element={<FichaDetallePage />}
-            />
-            <Route
-              path="/pacientes/:pacienteId/fichas/:fichaId/editar"
-              element={<FichaFormPage />}
-            />
-            <Route path="/pacientes/:pacienteId/muestras/nueva" element={<MuestraFormPage />} />
+  if (status === 'unavailable') {
+    return (
+      <BootScreen text="No se pudo contactar al servidor.">
+        <Btn variant="primary" onClick={reload}>
+          Reintentar
+        </Btn>
+      </BootScreen>
+    );
+  }
 
-            {/* SEG-U02..U05 */}
-            <Route path="/usuarios" element={<UsuariosRoute />} />
-            <Route path="/auditoria" element={<AuditoriaRoute />} />
+  if (status === 'unauthenticated') {
+    return (
+      <>
+        <LoginPage />
+        <ToastHost />
+      </>
+    );
+  }
 
-            {/* DIAG-U06 */}
-            <Route path="/catalogos" element={<CatalogosPage />} />
+  return (
+    <>
+      <Workspace onLogout={logout} />
+    </>
+  );
+}
 
-            {/* SEG-U08, SEG-U09 */}
-            <Route path="/perfil" element={<ProfilePage />} />
-            <Route path="/perfil/contrasena" element={<ChangePasswordPage />} />
-
-            <Route path="*" element={<HomeRedirect />} />
-          </Route>
-        </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </ErrorBoundary>
+function BootScreen({ text, children }: { text: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg px-4">
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-[5px] bg-accent text-[15px] font-bold text-white">
+          S
+        </div>
+        <div className="text-[15px] font-bold tracking-[0.03em] text-text-primary">SIGEMI</div>
+      </div>
+      <p className="m-0 text-[12.5px] text-text-secondary">{text}</p>
+      {children}
+    </div>
   );
 }

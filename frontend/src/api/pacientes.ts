@@ -4,8 +4,8 @@ import { apiRequest, buildQuery, type Paginated } from './http';
  * Patient API (UCE-REC-16/17/18/19, UCE-REC-S-01).
  *
  * Contract fixed by `backend/app/api/v1/pacientes.py` and
- * `backend/app/schemas/pacientes.py`. `sexo` is deliberately absent: no UCE
- * governs it (gap G13), so the API neither accepts nor exposes it.
+ * `backend/app/schemas/pacientes.py`. `sexo` is a level-3 column and the API
+ * exposes it (reconciliation A2 of `odd/tasks/07-frontend-backoffice.md`).
  *
  * The backend validates every format rule and answers `400` with `campo`; the
  * screen only renders that message on the field.
@@ -19,6 +19,8 @@ export interface Paciente {
   apellido: string;
   /** `YYYY-MM-DD` (the backend's `date`). */
   fecha_nacimiento: string;
+  /** Level-3 `paciente.sexo`; nullable because the column is. */
+  sexo: string | null;
   domicilio: string | null;
   telefono: string;
   correo_electronico: string | null;
@@ -47,6 +49,7 @@ export interface PacienteCreate {
   apellido: string;
   fecha_nacimiento: string;
   telefono: string;
+  sexo?: string | null;
   domicilio?: string | null;
   correo_electronico?: string | null;
   obra_social?: string | null;
