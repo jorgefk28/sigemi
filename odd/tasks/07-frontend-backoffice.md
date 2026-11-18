@@ -153,7 +153,24 @@ control que no hace nada es peor que el demo:
 2. El selector de rol del sidebar era una simulación del prototipo (`roleStore` con tres usuarios
    ficticios). Se reemplazó por los roles reales de `GET /auth/me` y la acción «Cerrar sesión».
 
-### L5 — Qué queda abierto (2026-11-17)
+### L5 — Puesta en marcha documentada y primer acceso (2026-11-17)
+
+El `README.md` describía un monorepo sin frontend y sin forma de entrar al sistema. Se reescribió
+con las tres terminales (base y Redis, backend, frontend), los puertos reales, los comandos de
+verificación de ambos lados y una sección de primer acceso.
+
+El primer acceso era un hueco real: no hay autorregistro y `POST /usuarios` exige un administrador
+ya autenticado, así que una base recién migrada no se puede usar. Se agregó
+`backend/scripts/crear_admin.py` (idempotente, con `--reset-contrasena` para recuperar una clave
+olvidada o reactivar una cuenta bloqueada). No es una migración a propósito: `AGENTS.md` prohíbe
+credenciales y hashes dentro de una migración.
+
+Evidencia del script: se creó una cuenta de prueba, `POST /api/v1/auth/login` respondió `200`,
+`GET /api/v1/auth/me` devolvió el usuario con `roles: ["administrador"]`, `--reset-contrasena`
+cambió la clave y el login volvió a responder `200`. La cuenta de prueba se borró junto con sus
+dos eventos de auditoría; la tabla `usuario` volvió a tener sólo `admin@sigemi.local`.
+
+### L6 — Qué queda abierto (2026-11-17)
 
 T5 queda bloqueada por decisión del dueño, no por capacidad: ver A-17 en
 `odd/DECISIONES-AUTONOMAS.md`. Las dos extensiones que la cierran son (1) el catálogo clínico de
